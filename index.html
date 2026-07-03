@@ -66,8 +66,20 @@ function freqToSecs(f) {
   if (m) return parseInt(m[1]) * 60 + (parseInt(m[2]) || 0);
   return 9999;
 }
+
+// Main skill contribution: relative curve value at the Pokemon's current
+// skill level, normalized against a baseline of 1.5 (a mid-tier lvl-1 skill)
+// so it nudges the score without overwhelming subskills/frequency.
+function scoreMainSkill(p) {
+  const skillData = GAME?.mainSkills?.[p.mainSkill];
+  if (!skillData) return 0;
+  const lvl = Math.max(1, Math.min(p.mainSkillLevel || 1, skillData.maxLevel));
+  const curveValue = skillData.relativeCurve[lvl - 1] || skillData.relativeCurve[0];
+  return Math.round(((curveValue / 1.5) * 3) * 10) / 10; // scaled to ~0-7 range
+}
+
 function totalScore(p) {
-  return scoreSubskills(p.subskills) * 2 + 3600 / freqToSecs(p.frequency);
+  return scoreSubskills(p.subskills) * 2 + 3600 / freqToSecs(p.frequency) + scoreMainSkill(p);
 }
 
 // ── UI atoms ──────────────────────────────────────────────────────────────────
@@ -143,7 +155,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
           </div>
           {pokemon.berry && (
             <div style={{fontSize:10,color:"#555577",fontFamily:"monospace",marginTop:2}}>
-              🍓 {pokemon.berry} · {pokemon.mainSkill}
+              🍓 {pokemon.berry} · {pokemon.mainSkill} {pokemon.mainSkillLevel ? `Lv.${pokemon.mainSkillLevel}` : ""}
             </div>
           )}
         </div>
@@ -158,6 +170,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
       <div style={{background:"rgba(0,0,0,0.2)",borderRadius:10,padding:12,marginBottom:14}}>
         <RadarBar label="HELPS/HR"       value={helpsPerHour}       max={2.5} color="#2ECC8A"/>
         <RadarBar label="SUBSKILL SCORE" value={subskillScore}      max={12}  color="#7EC8E3"/>
+        <RadarBar label="MAIN SKILL PWR" value={scoreMainSkill(pokemon)} max={7} color="#F0C040"/>
         <RadarBar label="CARRY LIMIT"    value={pokemon.carryLimit||0} max={25} color="#A09BC0"/>
       </div>
 
@@ -249,7 +262,7 @@ function SpeciesInput({value, onSelect}) {
 // ── Data Entry Form ───────────────────────────────────────────────────────────
 const EMPTY_FORM = {
   species: "", name: "", level: "", rp: "", freqMins: "", freqSecs: "",
-  carryLimit: "", nature: "",
+  carryLimit: "", nature: "", mainSkill: "", mainSkillLevel: "1",
   sub10: "", sub25: "", sub50: "", sub70: "", sub80: ""
 };
 
@@ -270,6 +283,8 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
         freqSecs: String(fs % 60),
         carryLimit: String(editTarget.carryLimit || ""),
         nature: editTarget.nature || "",
+        mainSkill: editTarget.mainSkill || "",
+        mainSkillLevel: String(editTarget.mainSkillLevel || "1"),
         sub10: editTarget.subskills?.[10]?.name || "",
         sub25: editTarget.subskills?.[25]?.name || "",
         sub50: editTarget.subskills?.[50]?.name || "",
@@ -300,7 +315,8 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
       species: form.species,
       specialty: speciesData?.specialty || "?",
       berry: speciesData?.berry || "?",
-      mainSkill: speciesData?.mainSkill || "?",
+      mainSkill: form.mainSkill || speciesData?.mainSkill || "?",
+      mainSkillLevel: parseInt(form.mainSkillLevel) || 1,
       level,
       rp: parseInt(form.rp) || 0,
       frequency: `${parseInt(form.freqMins)||0} mins ${parseInt(form.freqSecs)||0} secs`,
@@ -359,14 +375,38 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
       {/* Species */}
       <div className="field">
         <label>Especie *</label>
-        <SpeciesInput value={form.species} onSelect={s => set("species", s)}/>
+        <SpeciesInput value={form.species}
+          onSelect={s => setForm(prev => ({...prev, species: s, mainSkill: GAME?.species?.[s]?.mainSkill || ""}))}/>
         {speciesData && (
           <div style={{marginTop:6,padding:"8px 10px",background:"rgba(46,204,138,0.08)",
             border:"1px solid rgba(46,204,138,0.2)",borderRadius:8,fontSize:11,
             color:"#2ECC8A",fontFamily:"monospace"}}>
-            ✓ {speciesData.specialty} · 🍓 {speciesData.berry} · ⚡ {speciesData.mainSkill}
+            ✓ {speciesData.specialty} · 🍓 {speciesData.berry}
           </div>
         )}
+      </div>
+
+      {/* Main Skill — autofilled but editable (game data can be outdated) */}
+      <div className="field">
+        <label>Main Skill (editable si no coincide con el juego)</label>
+        <input value={form.mainSkill} placeholder="ej. Heal Pulse (Energizing Cheer S)"
+          onChange={e=>set("mainSkill", e.target.value)}/>
+      </div>
+
+      {/* Main Skill Level — critical for comparison weight */}
+      <div className="field">
+        <label>Nivel del Main Skill (1-7)</label>
+        <select value={form.mainSkillLevel} onChange={e=>set("mainSkillLevel", e.target.value)}>
+          {[1,2,3,4,5,6,7].map(lv => {
+            const skillMax = GAME?.mainSkills?.[form.mainSkill]?.maxLevel || 6;
+            return <option key={lv} value={lv} disabled={lv > skillMax}>
+              Lv.{lv}{lv > skillMax ? " (no disponible)" : ""}
+            </option>;
+          })}
+        </select>
+        <div style={{marginTop:6,fontSize:10,color:"#555577",fontFamily:"monospace",lineHeight:1.5}}>
+          Sube con Main Skill Seeds o automático al evolucionar
+        </div>
       </div>
 
       {/* Nickname + level */}
