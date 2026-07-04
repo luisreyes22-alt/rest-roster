@@ -376,12 +376,25 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
       <div className="field">
         <label>Especie *</label>
         <SpeciesInput value={form.species}
-          onSelect={s => setForm(prev => ({...prev, species: s, mainSkill: GAME?.species?.[s]?.mainSkill || ""}))}/>
+          onSelect={s => {
+            const sp = GAME?.species?.[s] || {};
+            setForm(prev => ({...prev, species: s,
+              mainSkill: sp.mainSkill || "",
+              freqMins: sp.baseFrequency ? String(Math.floor(sp.baseFrequency / 60)) : prev.freqMins,
+              freqSecs: sp.baseFrequency ? String(sp.baseFrequency % 60) : prev.freqSecs,
+              carryLimit: sp.carryLimitBase ? String(sp.carryLimitBase) : prev.carryLimit}));
+          }}/>
         {speciesData && (
           <div style={{marginTop:6,padding:"8px 10px",background:"rgba(46,204,138,0.08)",
             border:"1px solid rgba(46,204,138,0.2)",borderRadius:8,fontSize:11,
             color:"#2ECC8A",fontFamily:"monospace"}}>
             ✓ {speciesData.specialty} · 🍓 {speciesData.berry}
+            {speciesData.ingredientPercent != null && (
+              <div style={{marginTop:4,color:"#A09BC0"}}>
+                🧺 ing {speciesData.ingredientPercent}% · ⚡ skill {speciesData.skillPercent}%
+                {speciesData.baseFrequency ? ` · ⏱️ base ${Math.floor(speciesData.baseFrequency/60)}m ${speciesData.baseFrequency%60}s` : ""}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -448,6 +461,9 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
           <input type="number" inputMode="numeric" value={form.freqSecs} placeholder="2"
             onChange={e=>set("freqSecs", e.target.value)}/>
         </div>
+      </div>
+      <div style={{margin:"-6px 0 10px",fontSize:10,color:"#555577",fontFamily:"monospace"}}>
+        Se auto-llena con la base de la especie — ajústala a la de tu Pokémon si difiere
       </div>
 
       {/* Nature */}
