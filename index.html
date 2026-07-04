@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
@@ -126,7 +126,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
   const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * 10) / 10;
   const subskillScore = scoreSubskills(pokemon.subskills);
   const rankColors = ["#F0C040","#A09BC0","#CD7F32","#7EC8E3","#2ECC8A"];
-  const rankLabels = ["#1 RECOMENDADO","#2","#3","#4","#5"];
+  const rankLabels = ["#1 RECOMMENDED","#2","#3","#4","#5"];
   const nat = GAME?.natures?.[pokemon.nature] || {};
 
   return (
@@ -185,7 +185,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
 
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:14,
         padding:"6px 10px",background:"rgba(255,255,255,0.04)",borderRadius:8}}>
-        <span style={{fontSize:10,color:"#555577",fontFamily:"monospace"}}>FRECUENCIA</span>
+        <span style={{fontSize:10,color:"#555577",fontFamily:"monospace"}}>FREQUENCY</span>
         <span style={{fontSize:12,color:"#F0C040",fontFamily:"monospace"}}>{pokemon.frequency}</span>
       </div>
 
@@ -208,19 +208,19 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
         {onAddToRoster && inRoster && (
           <div style={{flex:1,padding:"10px",textAlign:"center",
             background:"rgba(46,204,138,0.08)",border:"1px solid rgba(46,204,138,0.2)",
-            borderRadius:10,color:"#2ECC8A",fontSize:12,fontWeight:700}}>✓ EN TU ROSTER</div>
+            borderRadius:10,color:"#2ECC8A",fontSize:12,fontWeight:700}}>✓ IN YOUR ROSTER</div>
         )}
         {onEdit && (
           <button onClick={()=>onEdit(pokemon)}
             style={{flex:1,padding:"10px",background:"rgba(126,200,227,0.1)",
               border:"1px solid rgba(126,200,227,0.3)",borderRadius:10,color:"#7EC8E3",
-              fontSize:12,fontWeight:600}}>✏️ EDITAR</button>
+              fontSize:12,fontWeight:600}}>✏️ EDIT</button>
         )}
         {onRemoveFromRoster && (
           <button onClick={()=>onRemoveFromRoster(pokemon.id)}
             style={{flex:1,padding:"10px",background:"rgba(232,96,76,0.1)",
               border:"1px solid rgba(232,96,76,0.3)",borderRadius:10,color:"#E8604C",
-              fontSize:12,fontWeight:600}}>🗑 REMOVER</button>
+              fontSize:12,fontWeight:600}}>🗑 REMOVE</button>
         )}
       </div>
     </div>
@@ -239,7 +239,7 @@ function SpeciesInput({value, onSelect}) {
 
   return (
     <div style={{position:"relative"}}>
-      <input value={text} placeholder="ej. Latios"
+      <input value={text} placeholder="e.g. Latios"
         onChange={e => { setText(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}/>
       {open && matches.length > 0 && (
@@ -331,15 +331,15 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
   function handleSave() {
     if (!valid) return;
     onSave(buildPokemon());
-    if (isEdit) { onDoneEdit(); showToast("✓ Pokémon actualizado"); }
-    else { setForm(EMPTY_FORM); showToast("✓ Guardado en el roster"); }
+    if (isEdit) { onDoneEdit(); showToast("✓ Pokémon updated"); }
+    else { setForm(EMPTY_FORM); showToast("✓ Saved to roster"); }
   }
 
   function handleAddCompare() {
     if (!valid) return;
     onCompareAdd(buildPokemon());
     setForm(EMPTY_FORM);
-    showToast("✓ Agregado a comparación");
+    showToast("✓ Added to comparison");
   }
 
   function SubSelect({slotKey, slotLevel}) {
@@ -349,7 +349,7 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
         <label>Lv.{slotLevel} {locked && "🔒"}</label>
         <select value={form[slotKey]} onChange={e=>set(slotKey, e.target.value)}
           style={{opacity: locked ? 0.6 : 1, fontSize:12, padding:"9px 8px"}}>
-          <option value="">— vacío —</option>
+          <option value="">— empty —</option>
           {subskillNames.map(s => (
             <option key={s} value={s} disabled={chosen.includes(s) && form[slotKey] !== s}>
               [{GAME.subskills[s].tier}] {s}
@@ -365,16 +365,16 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
       {toast && <Toast msg={toast}/>}
       <div style={{textAlign:"center",padding:"14px 0 18px"}}>
         <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>
-          {isEdit ? "Editar Pokémon" : "Agregar Pokémon"}
+          {isEdit ? "Edit Pokémon" : "Add Pokémon"}
         </div>
         <div style={{fontSize:12,color:"#A09BC0"}}>
-          {isEdit ? `Editando a ${editTarget.name}` : "Data entry rápido con autocompletado"}
+          {isEdit ? `Editing ${editTarget.name}` : "Quick data entry with autocomplete"}
         </div>
       </div>
 
       {/* Species */}
       <div className="field">
-        <label>Especie *</label>
+        <label>Species *</label>
         <SpeciesInput value={form.species}
           onSelect={s => {
             const sp = GAME?.species?.[s] || {};
@@ -401,35 +401,35 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
 
       {/* Main Skill — autofilled but editable (game data can be outdated) */}
       <div className="field">
-        <label>Main Skill (editable si no coincide con el juego)</label>
-        <input value={form.mainSkill} placeholder="ej. Heal Pulse (Energizing Cheer S)"
+        <label>Main Skill (editable if it does not match the game)</label>
+        <input value={form.mainSkill} placeholder="e.g. Heal Pulse (Energizing Cheer S)"
           onChange={e=>set("mainSkill", e.target.value)}/>
       </div>
 
       {/* Main Skill Level — critical for comparison weight */}
       <div className="field">
-        <label>Nivel del Main Skill (1-7)</label>
+        <label>Main Skill Level (1-7)</label>
         <select value={form.mainSkillLevel} onChange={e=>set("mainSkillLevel", e.target.value)}>
           {[1,2,3,4,5,6,7].map(lv => {
             const skillMax = GAME?.mainSkills?.[form.mainSkill]?.maxLevel || 6;
             return <option key={lv} value={lv} disabled={lv > skillMax}>
-              Lv.{lv}{lv > skillMax ? " (no disponible)" : ""}
+              Lv.{lv}{lv > skillMax ? " (not available)" : ""}
             </option>;
           })}
         </select>
         <div style={{marginTop:6,fontSize:10,color:"#555577",fontFamily:"monospace",lineHeight:1.5}}>
-          Sube con Main Skill Seeds o automático al evolucionar
+          Increases with Main Skill Seeds or automatically on evolution
         </div>
       </div>
 
       {/* Nickname + level */}
       <div style={{display:"flex",gap:10}}>
         <div className="field" style={{flex:2}}>
-          <label>Apodo</label>
-          <input value={form.name} placeholder="ej. Pochi" onChange={e=>set("name", e.target.value)}/>
+          <label>Nickname</label>
+          <input value={form.name} placeholder="e.g. Pochi" onChange={e=>set("name", e.target.value)}/>
         </div>
         <div className="field" style={{flex:1}}>
-          <label>Nivel *</label>
+          <label>Level *</label>
           <input type="number" inputMode="numeric" value={form.level} placeholder="27"
             onChange={e=>set("level", e.target.value)}/>
         </div>
@@ -452,7 +452,7 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
       {/* Frequency */}
       <div style={{display:"flex",gap:10}}>
         <div className="field" style={{flex:1}}>
-          <label>Frecuencia — Mins</label>
+          <label>Frequency — Mins</label>
           <input type="number" inputMode="numeric" value={form.freqMins} placeholder="38"
             onChange={e=>set("freqMins", e.target.value)}/>
         </div>
@@ -463,14 +463,14 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
         </div>
       </div>
       <div style={{margin:"-6px 0 10px",fontSize:10,color:"#555577",fontFamily:"monospace"}}>
-        Se auto-llena con la base de la especie — ajústala a la de tu Pokémon si difiere
+        Auto-filled with the species base — adjust it if your Pokémon differs
       </div>
 
       {/* Nature */}
       <div className="field">
         <label>Nature *</label>
         <select value={form.nature} onChange={e=>set("nature", e.target.value)}>
-          <option value="">— selecciona —</option>
+          <option value="">— select —</option>
           {GAME && Object.keys(GAME.natures).map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {natureData && (natureData.buff || natureData.nerf) && (
@@ -480,13 +480,13 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
           </div>
         )}
         {natureData && !natureData.buff && !natureData.nerf && (
-          <div style={{marginTop:6,fontSize:11,color:"#555577",fontFamily:"monospace"}}>nature neutra</div>
+          <div style={{marginTop:6,fontSize:11,color:"#555577",fontFamily:"monospace"}}>neutral nature</div>
         )}
       </div>
 
       {/* Subskills */}
       <div style={{fontSize:10,color:"#555577",fontFamily:"monospace",margin:"6px 0 8px",
-        letterSpacing:"0.08em"}}>SUBSKILLS (Lv.10 y Lv.25 requeridos)</div>
+        letterSpacing:"0.08em"}}>SUBSKILLS (Lv.10 and Lv.25 required)</div>
       <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
         <SubSelect slotKey="sub10" slotLevel={10}/>
         <SubSelect slotKey="sub25" slotLevel={25}/>
@@ -501,20 +501,20 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
           <button onClick={handleAddCompare} disabled={!valid}
             style={{flex:1,padding:13,border:"none",borderRadius:12,fontSize:13,fontWeight:700,
               background:valid?"linear-gradient(135deg,#4B2D8F,#7B4DBF)":"rgba(255,255,255,0.05)",
-              color:valid?"#E8E4F0":"#555577"}}>⚔️ A COMPARAR</button>
+              color:valid?"#E8E4F0":"#555577"}}>⚔️ COMPARE</button>
         )}
         <button onClick={handleSave} disabled={!valid}
           style={{flex:1,padding:13,border:"none",borderRadius:12,fontSize:13,fontWeight:700,
             background:valid?"linear-gradient(135deg,#2ECC8A,#1a9960)":"rgba(255,255,255,0.05)",
             color:valid?"#0D1B2A":"#555577"}}>
-          {isEdit ? "💾 GUARDAR CAMBIOS" : "📋 GUARDAR EN ROSTER"}
+          {isEdit ? "💾 SAVE CHANGES" : "📋 SAVE TO ROSTER"}
         </button>
       </div>
       {isEdit && (
         <button onClick={onDoneEdit}
           style={{width:"100%",marginTop:10,padding:12,background:"transparent",
             border:"1px solid rgba(255,255,255,0.1)",borderRadius:12,color:"#A09BC0",fontSize:13}}>
-          Cancelar edición
+          Cancel editing
         </button>
       )}
     </div>
@@ -526,14 +526,14 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
   if (compared.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
       <div style={{fontSize:40,marginBottom:16}}>⚔️</div>
-      <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Nada que comparar aún</div>
+      <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Nothing to compare yet</div>
       <div style={{fontSize:13,color:"#A09BC0",marginBottom:24}}>
-        Agrega Pokémon con "⚔️ A Comparar" desde el formulario
+        Add Pokémon with "⚔️ Compare" from the form
       </div>
       <button onClick={onGoAdd}
         style={{padding:"12px 24px",background:"linear-gradient(135deg,#4B2D8F,#7B4DBF)",
           border:"none",borderRadius:12,color:"#E8E4F0",fontSize:13,fontWeight:700}}>
-        + AGREGAR POKÉMON
+        + ADD POKÉMON
       </button>
     </div>
   );
@@ -545,7 +545,7 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
         borderRadius:12,padding:"14px 16px",marginBottom:20,
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:11,color:"#555577",fontFamily:"monospace",marginBottom:2}}>RECOMENDACIÓN</div>
+          <div style={{fontSize:11,color:"#555577",fontFamily:"monospace",marginBottom:2}}>RECOMMENDATION</div>
           <div style={{fontSize:16,fontWeight:700,color:"#F0C040"}}>Invertir en {sorted[0]?.name}</div>
         </div>
         <button onClick={onClear}
@@ -560,7 +560,7 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
       ))}
       <div style={{padding:12,background:"rgba(255,255,255,0.03)",borderRadius:8,
         fontSize:10,color:"#555577",fontFamily:"monospace",lineHeight:1.6}}>
-        * Análisis basado en subskills activos + proyección a Lv.70 · Data v{GAME?.meta?.version}
+        * Analysis based on active subskills + projection to Lv.70 · Data v{GAME?.meta?.version}
       </div>
     </div>
   );
@@ -574,7 +574,7 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div>
-          <div style={{fontSize:11,color:"#555577",fontFamily:"monospace"}}>TU ROSTER</div>
+          <div style={{fontSize:11,color:"#555577",fontFamily:"monospace"}}>YOUR ROSTER</div>
           <div style={{fontSize:18,fontWeight:700}}>{roster.length} Pokémon</div>
         </div>
         <div style={{display:"flex",gap:8}}>
@@ -601,14 +601,14 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
       {roster.length === 0 ? (
         <div style={{textAlign:"center",padding:"50px 20px"}}>
           <div style={{fontSize:40,marginBottom:16}}>🌙</div>
-          <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Tu roster está vacío</div>
+          <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Your roster is empty</div>
           <div style={{fontSize:13,color:"#A09BC0",marginBottom:24}}>
-            Agrega tu primer Pokémon para empezar
+            Add your first Pokémon to get started
           </div>
           <button onClick={onGoAdd}
             style={{padding:"12px 24px",background:"linear-gradient(135deg,#4B2D8F,#7B4DBF)",
               border:"none",borderRadius:12,color:"#E8E4F0",fontSize:13,fontWeight:700}}>
-            + AGREGAR POKÉMON
+            + ADD POKÉMON
           </button>
         </div>
       ) : (
@@ -660,27 +660,27 @@ function buildTeam(roster, islandName, recipeName) {
 
   // Slot 1: best Ingredient specialist that actually supplies the recipe (if one is chosen)
   if (requiredIngredients) {
-    pick(p => p.specialty === "Ingredients" && ingredientMatch(p), "🥘 Ingredientes (plato)");
+    pick(p => p.specialty === "Ingredients" && ingredientMatch(p), "🥘 Ingredients (dish)");
   }
   // Slot 2: best Ingredient specialist overall (dish support)
-  pick(p => p.specialty === "Ingredients", "🥘 Ingredientes");
+  pick(p => p.specialty === "Ingredients", "🥘 Ingredients");
   // Slot 3: best Skill specialist (utility/energy)
   pick(p => p.specialty === "Skills", "⚡ Skills / Utility");
   // Slot 4: best berry-matching Berry specialist (island synergy)
-  pick(p => p.specialty === "Berries" && berryMatch(p), "🍓 Berries (isla)");
+  pick(p => p.specialty === "Berries" && berryMatch(p), "🍓 Berries (island)");
   // Slots 5+: best remaining by score
   while (team.length < 5) {
-    if (!pick(() => true, "⭐ Mejor disponible")) break;
+    if (!pick(() => true, "⭐ Best available")) break;
   }
 
   // Analysis
   const specialties = team.reduce((acc,p) => { acc[p.specialty]=(acc[p.specialty]||0)+1; return acc; }, {});
   const matches = team.filter(berryMatch).length;
   const warnings = [];
-  if (!specialties["Ingredients"]) warnings.push("Sin ingredient specialist — puede faltar para cocinar");
-  if (!specialties["Skills"]) warnings.push("Sin skill specialist — menos utilidad de main skills");
-  if (matches < 2) warnings.push("Pocos Pokémon con berry de la isla — Drowsy Power bajo");
-  if (roster.length < 5) warnings.push(`Solo tienes ${roster.length} Pokémon en el roster`);
+  if (!specialties["Ingredients"]) warnings.push("No ingredient specialist — cooking may fall short");
+  if (!specialties["Skills"]) warnings.push("No skill specialist — less main skill utility");
+  if (matches < 2) warnings.push("Few Pokémon matching the island berries — low Drowsy Power");
+  if (roster.length < 5) warnings.push(`You only have ${roster.length} Pokémon in the roster`);
 
   let missingIngredients = [];
   if (requiredIngredients) {
@@ -688,7 +688,7 @@ function buildTeam(roster, islandName, recipeName) {
     team.forEach(p => speciesIngredientPool(p.species).forEach(ing => { if (requiredIngredients.has(ing)) covered.add(ing); }));
     missingIngredients = [...requiredIngredients].filter(ing => !covered.has(ing));
     if (missingIngredients.length > 0) {
-      warnings.push(`Ningún miembro produce: ${missingIngredients.join(", ")}`);
+      warnings.push(`No team member produces: ${missingIngredients.join(", ")}`);
     }
   }
 
@@ -704,14 +704,14 @@ function TeamView({roster, onGoAdd}) {
   if (roster.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
       <div style={{fontSize:40,marginBottom:16}}>🏝️</div>
-      <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>Necesitas Pokémon en tu roster</div>
+      <div style={{fontSize:18,fontWeight:700,marginBottom:8}}>You need Pokémon in your roster</div>
       <div style={{fontSize:13,color:"#A09BC0",marginBottom:24}}>
-        El Team Builder arma equipos desde tu roster guardado
+        The Team Builder builds teams from your saved roster
       </div>
       <button onClick={onGoAdd}
         style={{padding:"12px 24px",background:"linear-gradient(135deg,#4B2D8F,#7B4DBF)",
           border:"none",borderRadius:12,color:"#E8E4F0",fontSize:13,fontWeight:700}}>
-        + AGREGAR POKÉMON
+        + ADD POKÉMON
       </button>
     </div>
   );
@@ -720,13 +720,13 @@ function TeamView({roster, onGoAdd}) {
     <div>
       <div style={{textAlign:"center",padding:"14px 0 18px"}}>
         <div style={{fontSize:22,fontWeight:800,marginBottom:4}}>Team Builder</div>
-        <div style={{fontSize:12,color:"#A09BC0"}}>Equipo óptimo para la semana desde tu roster</div>
+        <div style={{fontSize:12,color:"#A09BC0"}}>Optimal team for the week from your roster</div>
       </div>
 
       <div className="field">
-        <label>Isla de la semana *</label>
+        <label>Island of the week *</label>
         <select value={island} onChange={e=>{setIsland(e.target.value); setResult(null);}}>
-          <option value="">— selecciona la isla —</option>
+          <option value="">— select the island —</option>
           {Object.keys(GAME.islands).map(i => (
             <option key={i} value={i}>{i}</option>
           ))}
@@ -736,16 +736,16 @@ function TeamView({roster, onGoAdd}) {
             border:"1px solid rgba(126,200,227,0.2)",borderRadius:8,fontSize:11,
             color:"#7EC8E3",fontFamily:"monospace"}}>
             🍓 {GAME.islands[island].berries.includes("all")
-              ? "Acepta todas las berries"
+              ? "Accepts all berries"
               : "Berries: " + GAME.islands[island].berries.join(", ")}
           </div>
         )}
       </div>
 
       <div className="field">
-        <label>Plato de Snorlax (opcional)</label>
+        <label>Snorlax dish (optional)</label>
         <select value={recipeName} onChange={e=>{setRecipeName(e.target.value); setResult(null);}}>
-          <option value="">— sin plato específico —</option>
+          <option value="">— no specific dish —</option>
           {Object.entries(DISH_TYPE_TO_KEY).map(([label, key]) => (
             <optgroup key={key} label={label}>
               {GAME.recipes.filter(r => r.type === key).sort((a,b)=>b.value-a.value).map(r => (
@@ -758,7 +758,7 @@ function TeamView({roster, onGoAdd}) {
           <div style={{marginTop:6,padding:"8px 10px",background:"rgba(240,192,64,0.08)",
             border:"1px solid rgba(240,192,64,0.2)",borderRadius:8,fontSize:11,
             color:"#F0C040",fontFamily:"monospace"}}>
-            🍲 Necesita: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
+            🍲 Needs: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
           </div>
         )}
       </div>
@@ -768,7 +768,7 @@ function TeamView({roster, onGoAdd}) {
           letterSpacing:"0.05em",marginBottom:20,
           background:island?"linear-gradient(135deg,#4B2D8F,#7B4DBF)":"rgba(255,255,255,0.05)",
           color:island?"#E8E4F0":"#555577"}}>
-        🏗️ ARMAR EQUIPO ÓPTIMO
+        🏗️ BUILD OPTIMAL TEAM
       </button>
 
       {result && (
@@ -776,7 +776,7 @@ function TeamView({roster, onGoAdd}) {
           {/* Summary */}
           <div style={{background:"rgba(75,45,143,0.15)",border:"1px solid rgba(75,45,143,0.25)",
             borderRadius:12,padding:"14px 16px",marginBottom:16}}>
-            <div style={{fontSize:11,color:"#555577",fontFamily:"monospace",marginBottom:6}}>BALANCE DEL EQUIPO</div>
+            <div style={{fontSize:11,color:"#555577",fontFamily:"monospace",marginBottom:6}}>TEAM BALANCE</div>
             <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:12,fontFamily:"monospace"}}>
               <span style={{color:"#F0C040"}}>🍓 {result.specialties["Berries"]||0} Berries</span>
               <span style={{color:"#2ECC8A"}}>🥘 {result.specialties["Ingredients"]||0} Ingredients</span>
@@ -889,33 +889,33 @@ function App() {
         const news = arr.filter(p => !ids.has(p.id));
         return [...prev, ...news];
       });
-      showToast(`✓ Roster importado`);
+      showToast(`✓ Roster imported`);
     } catch {
-      showToast("⚠ Archivo inválido");
+      showToast("⚠ Invalid file");
     }
   }
 
   const rosterIds = new Set(roster.map(p => p.id));
 
   const NAV = [
-    { id: VIEWS.ADD,     label: "Agregar",  icon: "➕" },
-    { id: VIEWS.COMPARE, label: "Comparar", icon: "⚔️" },
+    { id: VIEWS.ADD,     label: "Add",      icon: "➕" },
+    { id: VIEWS.COMPARE, label: "Compare",  icon: "⚔️" },
     { id: VIEWS.ROSTER,  label: "Roster",   icon: "📋" },
-    { id: VIEWS.TEAM,    label: "Equipo",   icon: "🏝️" },
+    { id: VIEWS.TEAM,    label: "Team",     icon: "🏝️" },
   ];
 
   if (gameError) return (
     <div style={{padding:40,textAlign:"center"}}>
       <div style={{fontSize:40,marginBottom:16}}>⚠️</div>
-      <div style={{fontSize:16,fontWeight:700}}>Error cargando datos del juego</div>
-      <div style={{fontSize:13,color:"#A09BC0",marginTop:8}}>Verifica que gameData.json esté en el mismo folder</div>
+      <div style={{fontSize:16,fontWeight:700}}>Error loading game data</div>
+      <div style={{fontSize:13,color:"#A09BC0",marginTop:8}}>Make sure gameData.json is in the same folder</div>
     </div>
   );
 
   if (!gameLoaded) return (
     <div style={{padding:60,textAlign:"center"}}>
       <div style={{fontSize:40,marginBottom:16}}>🌙</div>
-      <div style={{fontSize:14,color:"#A09BC0",fontFamily:"monospace"}}>Cargando datos del juego...</div>
+      <div style={{fontSize:14,color:"#A09BC0",fontFamily:"monospace"}}>Loading game data...</div>
     </div>
   );
 
