@@ -1,5 +1,5 @@
 // Sleep Optimizer Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v4";
+const CACHE_NAME = "sleep-optimizer-v5";
 
 const ASSETS = [
   "./",
@@ -8,7 +8,9 @@ const ASSETS = [
   "./manifest.json",
   "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"
+  "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js",
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+  "https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css"
 ];
 
 // Install: pre-cache all assets
