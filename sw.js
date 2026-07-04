@@ -1,5 +1,5 @@
 // Sleep Optimizer Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v2";
+const CACHE_NAME = "sleep-optimizer-v3";
 
 const ASSETS = [
   "./",

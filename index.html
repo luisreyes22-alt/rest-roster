@@ -621,17 +621,30 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
 }
 
 // ── Team Builder ──────────────────────────────────────────────────────────────
-function buildTeam(roster, islandName) {
+const DISH_TYPE_TO_KEY = { "Curries & Stews": "curry", "Salads": "salad", "Desserts & Drinks": "dessert" };
+
+function speciesIngredientPool(speciesName) {
+  const sp = GAME.species[speciesName];
+  if (!sp) return new Set();
+  const all = [...sp.ingredient0, ...sp.ingredient30, ...sp.ingredient60];
+  return new Set(all.map(i => i.ingredient));
+}
+
+function buildTeam(roster, islandName, recipeName) {
   const island = GAME.islands[islandName];
   const acceptsAll = island.berries.includes("all");
   const berryMatch = p => acceptsAll || island.berries.includes(p.berry);
 
-  // Score with island context: berry match is a big multiplier for berry specialists
+  const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
+  const requiredIngredients = recipe ? new Set(recipe.ingredients.map(i => i.ingredient)) : null;
+  const ingredientMatch = p => requiredIngredients &&
+    [...speciesIngredientPool(p.species)].some(ing => requiredIngredients.has(ing));
+
+  // Score with island + recipe context: berry match and needed-ingredient match are bonuses
   function teamScore(p) {
     let s = totalScore(p);
-    if (berryMatch(p)) {
-      s += p.specialty === "Berries" ? 8 : 3;
-    }
+    if (berryMatch(p)) s += p.specialty === "Berries" ? 8 : 3;
+    if (ingredientMatch(p)) s += p.specialty === "Ingredients" ? 6 : 2;
     return s;
   }
 
@@ -645,13 +658,17 @@ function buildTeam(roster, islandName) {
     return false;
   }
 
-  // Slot 1: best Ingredient specialist (dish support)
+  // Slot 1: best Ingredient specialist that actually supplies the recipe (if one is chosen)
+  if (requiredIngredients) {
+    pick(p => p.specialty === "Ingredients" && ingredientMatch(p), "🥘 Ingredientes (plato)");
+  }
+  // Slot 2: best Ingredient specialist overall (dish support)
   pick(p => p.specialty === "Ingredients", "🥘 Ingredientes");
-  // Slot 2: best Skill specialist (utility/energy)
+  // Slot 3: best Skill specialist (utility/energy)
   pick(p => p.specialty === "Skills", "⚡ Skills / Utility");
-  // Slot 3: best berry-matching Berry specialist (island synergy)
+  // Slot 4: best berry-matching Berry specialist (island synergy)
   pick(p => p.specialty === "Berries" && berryMatch(p), "🍓 Berries (isla)");
-  // Slots 4-5: best remaining by score
+  // Slots 5+: best remaining by score
   while (team.length < 5) {
     if (!pick(() => true, "⭐ Mejor disponible")) break;
   }
@@ -665,12 +682,24 @@ function buildTeam(roster, islandName) {
   if (matches < 2) warnings.push("Pocos Pokémon con berry de la isla — Drowsy Power bajo");
   if (roster.length < 5) warnings.push(`Solo tienes ${roster.length} Pokémon en el roster`);
 
-  return { team, specialties, matches, warnings };
+  let missingIngredients = [];
+  if (requiredIngredients) {
+    const covered = new Set();
+    team.forEach(p => speciesIngredientPool(p.species).forEach(ing => { if (requiredIngredients.has(ing)) covered.add(ing); }));
+    missingIngredients = [...requiredIngredients].filter(ing => !covered.has(ing));
+    if (missingIngredients.length > 0) {
+      warnings.push(`Ningún miembro produce: ${missingIngredients.join(", ")}`);
+    }
+  }
+
+  return { team, specialties, matches, warnings, recipe, missingIngredients };
 }
 
 function TeamView({roster, onGoAdd}) {
   const [island, setIsland] = useState("");
+  const [recipeName, setRecipeName] = useState("");
   const [result, setResult] = useState(null);
+  const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
 
   if (roster.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
@@ -713,7 +742,28 @@ function TeamView({roster, onGoAdd}) {
         )}
       </div>
 
-      <button onClick={()=>setResult(buildTeam(roster, island))} disabled={!island}
+      <div className="field">
+        <label>Plato de Snorlax (opcional)</label>
+        <select value={recipeName} onChange={e=>{setRecipeName(e.target.value); setResult(null);}}>
+          <option value="">— sin plato específico —</option>
+          {Object.entries(DISH_TYPE_TO_KEY).map(([label, key]) => (
+            <optgroup key={key} label={label}>
+              {GAME.recipes.filter(r => r.type === key).sort((a,b)=>b.value-a.value).map(r => (
+                <option key={r.name} value={r.name}>{r.name}</option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+        {recipe && (
+          <div style={{marginTop:6,padding:"8px 10px",background:"rgba(240,192,64,0.08)",
+            border:"1px solid rgba(240,192,64,0.2)",borderRadius:8,fontSize:11,
+            color:"#F0C040",fontFamily:"monospace"}}>
+            🍲 Necesita: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
+          </div>
+        )}
+      </div>
+
+      <button onClick={()=>setResult(buildTeam(roster, island, recipeName))} disabled={!island}
         style={{width:"100%",padding:14,border:"none",borderRadius:12,fontSize:14,fontWeight:700,
           letterSpacing:"0.05em",marginBottom:20,
           background:island?"linear-gradient(135deg,#4B2D8F,#7B4DBF)":"rgba(255,255,255,0.05)",
