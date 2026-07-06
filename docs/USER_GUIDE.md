@@ -83,6 +83,10 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06 (later)**: Luis's real roster grew from 101 to 154 Pokemon -
+  53 more bulk-extracted from new in-game screenshots and merged into the
+  same importable file. Load the updated file via Roster > IMPORT (existing
+  IDs are unchanged, so re-importing only adds the new ones).
 - **2026-07-06**: Team Builder now supports Greengrass Isle (Expert Mode) -
   weekly main/sub favorite berries and a random bonus (Ingredients/Berries/
   Skills), with real formulas sourced from Neroli's Lab's own code (main
