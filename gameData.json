@@ -10338,6 +10338,11 @@
       ],
       "expert": false,
       "note": null
+    },
+    "Greengrass Isle (Expert Mode)": {
+      "berries": [],
+      "expert": true,
+      "note": "Unlocked at Snorlax Master 18. Berries are NOT fixed - each week 1 main favorite + 2 sub favorites are drawn from all 18 berries, plus one random bonus (ingredient/berry/skill). Configure this in the Team tab."
     }
   },
   "ingredients": [

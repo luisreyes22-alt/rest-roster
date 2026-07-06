@@ -722,7 +722,19 @@ function speciesIngredientPool(speciesName) {
   return new Set(all.map(i => i.ingredient));
 }
 
-function buildTeam(roster, islandName, recipeName) {
+// Greengrass Isle (Expert Mode): berries aren't fixed - each week has 1 main favorite +
+// 2 sub favorites drawn from all 18 berries, plus one random bonus. Formulas below are
+// taken directly from Neroli's Lab's own expert-mode event/simulation source, not guessed.
+const EXPERT_BONUS_LABELS = { ingredient: "Ingredients", berry: "Berries", skill: "Skills" };
+
+function expertBerryTier(p, expertSettings) {
+  if (!expertSettings) return "none";
+  if (p.berry === expertSettings.mainBerry) return "main";
+  if (expertSettings.subBerries.includes(p.berry)) return "sub";
+  return "none";
+}
+
+function buildTeam(roster, islandName, recipeName, expertSettings) {
   const island = GAME.islands[islandName];
   const acceptsAll = island.berries.includes("all");
   const berryMatch = p => acceptsAll || island.berries.includes(p.berry);
@@ -732,10 +744,24 @@ function buildTeam(roster, islandName, recipeName) {
   const ingredientMatch = p => requiredIngredients &&
     [...speciesIngredientPool(p.species)].some(ing => requiredIngredients.has(ing));
 
+  const isExpert = island.expert && expertSettings;
+
   // Score with island + recipe context: berry match and needed-ingredient match are bonuses
   function teamScore(p) {
     let s = totalScore(p);
-    if (berryMatch(p)) s += p.specialty === "Berries" ? 8 : 3;
+    if (isExpert) {
+      const tier = expertBerryTier(p, expertSettings);
+      // Frequency multiplier (main 0.9x / sub 1.0x / none 1.15x) applied as an equivalent
+      // helps/hour adjustment, on top of the base totalScore's own frequency term.
+      const freqMult = tier === "main" ? 1/0.9 : tier === "sub" ? 1 : 1/1.15;
+      s += (3600 / freqToSecs(p.frequency)) * (freqMult - 1);
+      if (tier === "main") s += 2; // skill level +1 (capped) nudges main-skill power up
+      if (tier !== "none" && expertSettings.randomBonus === p.specialty.toLowerCase().replace(/s$/, "")) {
+        s += 6; // this week's bonus specialty rewards favored-berry members of that specialty
+      }
+    } else if (berryMatch(p)) {
+      s += p.specialty === "Berries" ? 8 : 3;
+    }
     if (ingredientMatch(p)) s += p.specialty === "Ingredients" ? 6 : 2;
     return s;
   }
@@ -758,8 +784,13 @@ function buildTeam(roster, islandName, recipeName) {
   pick(p => p.specialty === "Ingredients", "Ingredients");
   // Slot 3: best Skill specialist (utility/energy)
   pick(p => p.specialty === "Skills", "Skills / Utility");
-  // Slot 4: best berry-matching Berry specialist (island synergy)
-  pick(p => p.specialty === "Berries" && berryMatch(p), "Berries (island)");
+  // Slot 4: best berry-matching Berry specialist (island synergy / main favorite first)
+  if (isExpert) {
+    pick(p => p.specialty === "Berries" && expertBerryTier(p, expertSettings) === "main", "Berries (main favorite)");
+    pick(p => p.specialty === "Berries" && expertBerryTier(p, expertSettings) === "sub", "Berries (sub favorite)");
+  } else {
+    pick(p => p.specialty === "Berries" && berryMatch(p), "Berries (island)");
+  }
   // Slots 5+: best remaining by score
   while (team.length < 5) {
     if (!pick(() => true, "Best available")) break;
@@ -767,12 +798,25 @@ function buildTeam(roster, islandName, recipeName) {
 
   // Analysis
   const specialties = team.reduce((acc,p) => { acc[p.specialty]=(acc[p.specialty]||0)+1; return acc; }, {});
-  const matches = team.filter(berryMatch).length;
   const warnings = [];
   if (!specialties["Ingredients"]) warnings.push("No ingredient specialist — cooking may fall short");
   if (!specialties["Skills"]) warnings.push("No skill specialist — less main skill utility");
-  if (matches < 2) warnings.push("Few Pokémon matching the island berries — low Drowsy Power");
   if (roster.length < 5) warnings.push(`You only have ${roster.length} Pokémon in the roster`);
+
+  let matches, mainMatches, subMatches;
+  if (isExpert) {
+    mainMatches = team.filter(p => expertBerryTier(p, expertSettings) === "main").length;
+    subMatches = team.filter(p => expertBerryTier(p, expertSettings) === "sub").length;
+    matches = mainMatches + subMatches;
+    if (mainMatches === 0) warnings.push("No team member has this week's main favorite berry — missing the frequency and skill-level bonus");
+    const bonusKey = expertSettings.randomBonus;
+    const bonusSpecialty = bonusKey === "ingredient" ? "Ingredients" : bonusKey === "berry" ? "Berries" : "Skills";
+    const hasBonusSynergy = team.some(p => p.specialty === bonusSpecialty && expertBerryTier(p, expertSettings) !== "none");
+    if (!hasBonusSynergy) warnings.push(`This week's ${EXPERT_BONUS_LABELS[bonusKey]} bonus needs a favored-berry ${bonusSpecialty} specialist to pay off - none made the team`);
+  } else {
+    matches = team.filter(berryMatch).length;
+    if (matches < 2) warnings.push("Few Pokémon matching the island berries — low Drowsy Power");
+  }
 
   let missingIngredients = [];
   if (requiredIngredients) {
@@ -784,16 +828,23 @@ function buildTeam(roster, islandName, recipeName) {
     }
   }
 
-  return { team, specialties, matches, warnings, recipe, missingIngredients };
+  return { team, specialties, matches, mainMatches, subMatches, isExpert, expertSettings, warnings, recipe, missingIngredients };
 }
 
-const ROLE_ICONS = { "Ingredients (dish)":"soup", "Ingredients":"soup", "Skills / Utility":"bolt", "Berries (island)":"cherry", "Best available":"star" };
+const ROLE_ICONS = { "Ingredients (dish)":"soup", "Ingredients":"soup", "Skills / Utility":"bolt",
+  "Berries (island)":"cherry", "Berries (main favorite)":"cherry", "Berries (sub favorite)":"cherry",
+  "Best available":"star" };
+
+const EMPTY_EXPERT = { mainBerry: "", subBerry1: "", subBerry2: "", randomBonus: "ingredient" };
 
 function TeamView({roster, onGoAdd}) {
   const [island, setIsland] = useState("");
   const [recipeName, setRecipeName] = useState("");
+  const [expert, setExpert] = useState(EMPTY_EXPERT);
   const [result, setResult] = useState(null);
   const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
+  const isExpertIsland = island && GAME.islands[island].expert;
+  const expertReady = !isExpertIsland || (expert.mainBerry && expert.subBerry1 && expert.subBerry2);
 
   if (roster.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
@@ -820,13 +871,13 @@ function TeamView({roster, onGoAdd}) {
 
       <div className="field">
         <label>Island of the week *</label>
-        <select value={island} onChange={e=>{setIsland(e.target.value); setResult(null);}}>
+        <select value={island} onChange={e=>{setIsland(e.target.value); setExpert(EMPTY_EXPERT); setResult(null);}}>
           <option value="">— select the island —</option>
           {Object.keys(GAME.islands).map(i => (
             <option key={i} value={i}>{i}</option>
           ))}
         </select>
-        {island && (
+        {island && !isExpertIsland && (
           <div style={{marginTop:6,padding:"8px 10px",background:"var(--info-bg)",
             border:"1px solid var(--info)",borderRadius:8,fontSize:11,
             color:"var(--info)",fontFamily:"monospace",display:"flex",alignItems:"center",gap:5}}>
@@ -837,6 +888,55 @@ function TeamView({roster, onGoAdd}) {
           </div>
         )}
       </div>
+
+      {isExpertIsland && (
+        <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
+          borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:14}}>
+          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+            letterSpacing:"0.05em"}}>THIS WEEK'S SETTINGS (from the in-game island screen)</div>
+
+          <div className="field">
+            <label>Main favorite berry *</label>
+            <select value={expert.mainBerry} onChange={e=>{setExpert(prev=>({...prev, mainBerry: e.target.value})); setResult(null);}}>
+              <option value="">— select —</option>
+              {GAME.berries.map(b => (
+                <option key={b.name} value={b.name} disabled={b.name === expert.subBerry1 || b.name === expert.subBerry2}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div style={{display:"flex",gap:10}}>
+            <div className="field" style={{flex:1}}>
+              <label>Sub favorite 1 *</label>
+              <select value={expert.subBerry1} onChange={e=>{setExpert(prev=>({...prev, subBerry1: e.target.value})); setResult(null);}}>
+                <option value="">— select —</option>
+                {GAME.berries.map(b => (
+                  <option key={b.name} value={b.name} disabled={b.name === expert.mainBerry || b.name === expert.subBerry2}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field" style={{flex:1}}>
+              <label>Sub favorite 2 *</label>
+              <select value={expert.subBerry2} onChange={e=>{setExpert(prev=>({...prev, subBerry2: e.target.value})); setResult(null);}}>
+                <option value="">— select —</option>
+                {GAME.berries.map(b => (
+                  <option key={b.name} value={b.name} disabled={b.name === expert.mainBerry || b.name === expert.subBerry1}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="field" style={{marginBottom:0}}>
+            <label>Random bonus this week *</label>
+            <select value={expert.randomBonus} onChange={e=>{setExpert(prev=>({...prev, randomBonus: e.target.value})); setResult(null);}}>
+              <option value="ingredient">Ingredients — extra ingredients from favored berries</option>
+              <option value="berry">Berries — favored-berry strength boosted</option>
+              <option value="skill">Skills — favored-berry skill chance boosted</option>
+            </select>
+          </div>
+          <div style={{marginTop:10,fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",lineHeight:1.6}}>
+            Main favorite: 10% faster help + skill level +1. Sub favorites: normal speed. Neither: 15% slower.
+          </div>
+        </div>
+      )}
 
       <div className="field">
         <label>Snorlax dish (optional)</label>
@@ -859,11 +959,13 @@ function TeamView({roster, onGoAdd}) {
         )}
       </div>
 
-      <button onClick={()=>setResult(buildTeam(roster, island, recipeName))} disabled={!island}
+      <button onClick={()=>setResult(buildTeam(roster, island, recipeName,
+          isExpertIsland ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus } : null))}
+        disabled={!island || !expertReady}
         style={{width:"100%",padding:14,border:"none",borderRadius:"var(--radius-control)",fontSize:14,fontWeight:600,
           letterSpacing:"0.05em",marginBottom:20,
-          background:island?"var(--accent)":"var(--surface-alt)",
-          color:island?"var(--on-accent)":"var(--text-muted)",
+          background:(island && expertReady)?"var(--accent)":"var(--surface-alt)",
+          color:(island && expertReady)?"var(--on-accent)":"var(--text-muted)",
           display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
         <Icon name="hammer" size={16}/> BUILD OPTIMAL TEAM
       </button>
@@ -878,8 +980,19 @@ function TeamView({roster, onGoAdd}) {
               <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--danger)"}}><Icon name="cherry" size={13}/> {result.specialties["Berries"]||0} Berries</span>
               <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--success)"}}><Icon name="soup" size={13}/> {result.specialties["Ingredients"]||0} Ingredients</span>
               <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--info)"}}><Icon name="bolt" size={13}/> {result.specialties["Skills"]||0} Skills</span>
-              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="beach" size={13}/> {result.matches}/5 berry match</span>
+              {result.isExpert ? (
+                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}>
+                  <Icon name="beach" size={13}/> {result.mainMatches} main / {result.subMatches} sub favorite
+                </span>
+              ) : (
+                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="beach" size={13}/> {result.matches}/5 berry match</span>
+              )}
             </div>
+            {result.isExpert && (
+              <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+                This week's bonus: <span style={{color:"var(--accent)"}}>{EXPERT_BONUS_LABELS[result.expertSettings.randomBonus]}</span>
+              </div>
+            )}
           </div>
 
           {/* Warnings */}
