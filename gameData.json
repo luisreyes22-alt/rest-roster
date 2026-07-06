@@ -77,6 +77,11 @@
     "Dream Shard Bonus": {
       "tier": "D",
       "rarity": "gold"
+    },
+    "Helping Bonus": {
+      "tier": "S",
+      "rarity": "gold",
+      "_note": "MANUALLY ADDED 2026-07-04 - missing from the original hand-made list. Reduces helping time of all team members by 5%. Tier S per community tier lists."
     }
   },
   "natures": {
@@ -10134,6 +10139,50 @@
           "ingredient": "Rousing Coffee"
         }
       ]
+    },
+    "Mew": {
+      "specialty": "All",
+      "berry": "Mago",
+      "mainSkill": "Versatile",
+      "type": "Psychic",
+      "pokedexNumber": 151,
+      "baseFrequency": 2900,
+      "ingredientPercent": 19.2,
+      "skillPercent": 2.3,
+      "carryLimitBase": 26,
+      "evolvesFrom": null,
+      "remainingEvolutions": 0,
+      "ingredient0": [
+        {
+          "amount": 2,
+          "ingredient": "Fancy Egg"
+        }
+      ],
+      "ingredient30": [
+        {
+          "amount": 2,
+          "ingredient": "Fancy Egg"
+        },
+        {
+          "amount": 3,
+          "ingredient": "Fiery Herb"
+        }
+      ],
+      "ingredient60": [
+        {
+          "amount": 2,
+          "ingredient": "Fancy Egg"
+        },
+        {
+          "amount": 5,
+          "ingredient": "Fiery Herb"
+        },
+        {
+          "amount": 7,
+          "ingredient": "Bean Sausage"
+        }
+      ],
+      "_note": "MANUALLY ADDED 2026-07-04, not from Neroli's Lab source - Mew is missing from that dataset. Stats sourced from Serebii/Game8 (type, berry, baseFrequency 48m20s, carryLimitBase 26, specialty All). ingredientPercent/skillPercent are COPIED FROM DARKRAI as a placeholder since Mew's exact percentages are not publicly documented (they vary per-player via Eureka Seed customization) - treat these two numbers as approximate."
     }
   },
   "berries": [
@@ -11977,6 +12026,29 @@
           ]
         }
       }
+    },
+    "Versatile": {
+      "description": "Can activate one of any Main Skill at random. Also gets candy for one team member.",
+      "maxLevel": 6,
+      "RP": [
+        400,
+        569,
+        785,
+        1083,
+        1425,
+        1968
+      ],
+      "valuesByLevel": [],
+      "relativeCurve": [
+        1,
+        1.42,
+        1.96,
+        2.71,
+        3.56,
+        4.92
+      ],
+      "activations": {},
+      "_note": "MANUALLY ADDED 2026-07-04 - Versatile is Mew's unique signature skill (randomly activates another Pokemon's main skill), not in Neroli's Lab source. RP curve copied from Charge Strength M as a rough placeholder since Versatile has no fixed \"amount\" of its own - the scoring app will treat its power as this approximate curve."
     }
   },
   "recipes": [
