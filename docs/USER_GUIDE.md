@@ -73,6 +73,10 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-04 (later)**: Game data gained Mew (with its Versatile skill) and
+  the previously missing Helping Bonus subskill. Luis's real roster (101
+  Pokemon) was bulk-extracted from in-game screenshots into an importable
+  file - load it via Roster > IMPORT.
 - **2026-07-04**: Visual redesign - warm cream/amber theme replacing the
   original dark purple, Tabler icons replacing emoji, added a light/dark
   toggle. Functionality unchanged. This guide created.
