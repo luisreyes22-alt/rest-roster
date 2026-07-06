@@ -49,6 +49,16 @@ things Snorlax cares about:
 1. **Island of the week** (required) - determines which berries count toward
    Drowsy Power. The team builder prioritizes roster members whose berry
    matches the island.
+
+   **Expert islands** (currently Greengrass Isle Expert Mode) work
+   differently: instead of a fixed berry list, each week has 1 main
+   favorite berry + 2 sub favorites drawn from all 18, plus one random
+   bonus (Ingredients, Berries, or Skills). Selecting an expert island
+   reveals extra dropdowns to enter that week's settings from the in-game
+   island screen. The team builder then favors main-berry Pokemon (they
+   help 10% faster and get +1 skill level) over sub-favorite (normal
+   speed) over unfavored (15% slower), and gives extra weight to whichever
+   specialty this week's bonus rewards.
 2. **Snorlax dish** (optional) - pick a specific recipe and the builder tries
    to include a roster member whose ingredients actually cover it. If nobody
    in your roster produces a needed ingredient, you'll see a warning naming
@@ -73,6 +83,11 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06**: Team Builder now supports Greengrass Isle (Expert Mode) -
+  weekly main/sub favorite berries and a random bonus (Ingredients/Berries/
+  Skills), with real formulas sourced from Neroli's Lab's own code (main
+  favorite = 10% faster help + skill level +1, sub = normal, neither = 15%
+  slower). Verified against Luis's real roster.
 - **2026-07-04 (later)**: Game data gained Mew (with its Versatile skill) and
   the previously missing Helping Bonus subskill. Luis's real roster (101
   Pokemon) was bulk-extracted from in-game screenshots into an importable
