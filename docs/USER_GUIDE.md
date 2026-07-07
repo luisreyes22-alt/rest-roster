@@ -11,14 +11,21 @@ autocomplete - this fills in its main skill, base help frequency, and carry
 limit automatically from real game data, so you only need to type what's
 specific to *your* Pokemon: nickname, level, RP, nature, and subskills.
 
-- **Species / Main Skill / Main Skill Level**: main skill level matters a lot
-  for scoring, since a level 1 Bulk Up and a level 6 Bulk Up are very
-  different in practice.
+- **Species / Main Skill / Main Skill Level**: Main Skill is a dropdown of
+  every valid skill in the game (auto-selected from the species, editable if
+  it doesn't match what you see in-game) - no more typos from free-text
+  entry. Main skill level matters a lot for scoring, since a level 1 Bulk Up
+  and a level 6 Bulk Up are very different in practice.
 - **Frequency**: auto-filled with the species' base value. Adjust it only if
   you've confirmed your specific Pokemon's actual timer differs.
 - **Subskills**: level 10 and level 25 are required to save; 50/70/80 are
   optional and gray out with a lock icon if your Pokemon isn't high enough
   level yet.
+- If the Save button is grayed out, a line below it tells you exactly what's
+  missing (e.g. "Missing: nature, Lv.10 subskill").
+- While entering several Pokemon in a row, a counter above the form tracks
+  how many you've saved this session, with an **UNDO LAST** button in case
+  you fat-fingered the last one.
 - **Compare** vs **Save to roster**: Compare adds it to a temporary
   side-by-side list (cleared on refresh); Save to roster keeps it permanently
   in local storage.
@@ -32,10 +39,13 @@ comparing, either add the winner to your roster or clear the list.
 
 ## Roster
 
-Your permanent collection, sorted best to worst by the same scoring model.
-Each entry shows collapsed (sprite, name, species, RP) - tap a row to expand
-it and see full stats, subskills, and the edit/remove buttons.
+Your permanent collection. Each entry shows collapsed (sprite, name,
+species, RP) - tap a row to expand it and see full stats, subskills, and the
+edit/remove buttons.
 
+- **Search**: filter by nickname or species as you type.
+- **Sort**: best overall (score), RP (high or low first), name (A-Z/Z-A),
+  Pokédex number, level, or specialty.
 - **Export**: downloads your whole roster as a `.json` file - useful as a
   backup, or to move your roster to another device/browser.
 - **Import**: loads a `.json` file (your own export, or one shared by someone
@@ -60,11 +70,13 @@ things Snorlax cares about:
    help 10% faster and get +1 skill level) over sub-favorite (normal
    speed) over unfavored (15% slower), and gives extra weight to whichever
    specialty this week's bonus rewards.
-2. **Snorlax dish** (optional) - pick a specific recipe and the builder tries
-   to include a roster member whose ingredients actually cover it. If nobody
-   in your roster produces a needed ingredient, you'll see a warning naming
-   it, so you know to catch or level up something new before that recipe
-   comes around.
+2. **Snorlax dish** (optional) - once you pick an island, a "Top Dishes"
+   gallery shows the top 5 highest-value dishes for each meal type (Curries
+   & Stews, Salads, Desserts & Drinks). Tap any dish to see its own
+   recommended team (and a warning if nobody in your roster produces one of
+   its ingredients) without leaving the island you picked. There's also a
+   plain dropdown below the gallery if you want a specific dish that isn't
+   in the top 5.
 
 The result shows a balance summary (how many Berries/Ingredients/Skills
 specialists made the team, and how many match the island), any warnings, and
@@ -86,6 +98,17 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06 (usability pass 2)**: App icon and header logo are now Luis's
+  dog instead of the moon (the light/dark toggle keeps its sun/moon icons -
+  those are functional). Roster gained search and 8 sort options
+  (RP/name/Pokédex number/level/specialty/score). The Add form's Main Skill
+  is now a dropdown (was free text - typos there silently broke scoring), a
+  "Missing: ..." hint appears under the disabled Save button, and a session
+  counter with an Undo Last button helps when entering many Pokemon in a
+  row. Team Builder's dish picker became a "Top Dishes" gallery: pick an
+  island, then browse the top 5 highest-value dishes per meal type with
+  each one's recommended team shown inline. Fixed a misidentified Pokemon
+  (Hughie was tagged Natu, is actually Xatu).
 - **2026-07-06 (usability pass)**: Roster and Team result lists now show
   Pokemon collapsed (with a species face icon) by default - tap a row to
   expand full details. Team result shows all 5 members together instead of

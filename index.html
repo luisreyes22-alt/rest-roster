@@ -398,9 +398,11 @@ const EMPTY_FORM = {
   sub10: "", sub25: "", sub50: "", sub70: "", sub80: ""
 };
 
-function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
+function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [toast, setToast] = useState("");
+  const [sessionCount, setSessionCount] = useState(0);
+  const [lastSavedId, setLastSavedId] = useState(null);
   const isEdit = !!editTarget;
 
   useEffect(() => {
@@ -458,13 +460,30 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
     };
   }
 
-  const valid = form.species && form.level && form.nature && form.sub10 && form.sub25;
+  const missing = [];
+  if (!form.species) missing.push("species");
+  if (!form.level) missing.push("level");
+  if (!form.nature) missing.push("nature");
+  if (!form.sub10) missing.push("Lv.10 subskill");
+  if (!form.sub25) missing.push("Lv.25 subskill");
+  const valid = missing.length === 0;
 
   function handleSave() {
     if (!valid) return;
-    onSave(buildPokemon());
+    const p = buildPokemon();
+    onSave(p);
+    setLastSavedId(p.id);
+    setSessionCount(c => c + 1);
     if (isEdit) { onDoneEdit(); showToast("✓ Pokémon updated"); }
     else { setForm(EMPTY_FORM); showToast("✓ Saved to roster"); }
+  }
+
+  function handleUndo() {
+    if (!lastSavedId) return;
+    onUndo(lastSavedId);
+    setLastSavedId(null);
+    setSessionCount(c => Math.max(0, c - 1));
+    showToast("↩ Last save undone");
   }
 
   function handleAddCompare() {
@@ -504,6 +523,24 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
         </div>
       </div>
 
+      {!isEdit && sessionCount > 0 && (
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,
+          padding:"8px 12px",background:"var(--success-bg)",border:"1px solid var(--success)",
+          borderRadius:8,marginBottom:16,fontSize:12,color:"var(--success)",fontFamily:"monospace"}}>
+          <span style={{display:"flex",alignItems:"center",gap:5}}>
+            <Icon name="check" size={13}/> {sessionCount} saved this session
+          </span>
+          {lastSavedId && (
+            <button onClick={handleUndo}
+              style={{background:"transparent",border:"1px solid var(--success)",borderRadius:14,
+                padding:"3px 10px",color:"var(--success)",fontSize:11,fontWeight:600,
+                display:"flex",alignItems:"center",gap:4}}>
+              <Icon name="arrow-back-up" size={12}/> UNDO LAST
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Species */}
       <div className="field">
         <label>Species *</label>
@@ -534,11 +571,16 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
         )}
       </div>
 
-      {/* Main Skill — autofilled but editable (game data can be outdated) */}
+      {/* Main Skill — autofilled from species, but pickable if the game data looks wrong */}
       <div className="field">
-        <label>Main Skill (editable if it does not match the game)</label>
-        <input value={form.mainSkill} placeholder="e.g. Heal Pulse (Energizing Cheer S)"
-          onChange={e=>set("mainSkill", e.target.value)}/>
+        <label>Main Skill</label>
+        <select value={form.mainSkill} onChange={e=>set("mainSkill", e.target.value)}>
+          <option value="">— select —</option>
+          {GAME && Object.keys(GAME.mainSkills).sort().map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <div style={{marginTop:6,fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+          Auto-filled when you pick a species — change it only if it doesn't match what you see in-game
+        </div>
       </div>
 
       {/* Main Skill Level — critical for comparison weight */}
@@ -650,6 +692,12 @@ function AddView({onSave, onCompareAdd, editTarget, onDoneEdit}) {
           {isEdit ? "SAVE CHANGES" : "SAVE TO ROSTER"}
         </button>
       </div>
+      {!valid && missing.length > 0 && (
+        <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",
+          display:"flex",alignItems:"center",gap:5}}>
+          <Icon name="info-circle" size={13}/> Missing: {missing.join(", ")}
+        </div>
+      )}
       {isEdit && (
         <button onClick={onDoneEdit}
           style={{width:"100%",marginTop:10,padding:12,background:"transparent",
@@ -708,8 +756,28 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
 }
 
 // ── Roster View ───────────────────────────────────────────────────────────────
+const ROSTER_SORTS = {
+  score:    { label: "Best overall (score)", cmp: (a,b) => totalScore(b) - totalScore(a) },
+  rpDesc:   { label: "RP (highest first)",   cmp: (a,b) => (b.rp||0) - (a.rp||0) },
+  rpAsc:    { label: "RP (lowest first)",    cmp: (a,b) => (a.rp||0) - (b.rp||0) },
+  nameAsc:  { label: "Name (A-Z)",           cmp: (a,b) => a.name.localeCompare(b.name) },
+  nameDesc: { label: "Name (Z-A)",           cmp: (a,b) => b.name.localeCompare(a.name) },
+  dex:      { label: "Pokédex number",       cmp: (a,b) => (GAME?.species?.[a.species]?.pokedexNumber||9999) - (GAME?.species?.[b.species]?.pokedexNumber||9999) },
+  levelDesc:{ label: "Level (highest first)",cmp: (a,b) => (b.level||0) - (a.level||0) },
+  specialty:{ label: "Specialty",            cmp: (a,b) => (a.specialty||"").localeCompare(b.specialty||"") },
+};
+
 function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
   const fileRef = useRef();
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState("score");
+
+  const filtered = roster.filter(p => {
+    if (!search.trim()) return true;
+    const q = search.trim().toLowerCase();
+    return p.name.toLowerCase().includes(q) || p.species.toLowerCase().includes(q);
+  });
+  const sorted = [...filtered].sort(ROSTER_SORTS[sortKey].cmp);
 
   return (
     <div>
@@ -745,7 +813,8 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
 
       {roster.length === 0 ? (
         <div style={{textAlign:"center",padding:"50px 20px"}}>
-          <Icon name="moon-stars" size={40} style={{color:"var(--text-muted)",marginBottom:16}}/>
+          <img src="./icon-header.png" alt="" width={48} height={48}
+            style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
           <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your roster is empty</div>
           <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
             Add your first Pokémon to get started
@@ -758,9 +827,28 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
           </button>
         </div>
       ) : (
-        [...roster].sort((a,b) => totalScore(b) - totalScore(a)).map(p => (
-          <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit} collapsible/>
-        ))
+        <React.Fragment>
+          <div style={{display:"flex",gap:8,marginBottom:14}}>
+            <div style={{flex:1,position:"relative"}}>
+              <Icon name="search" size={14} style={{position:"absolute",left:11,top:12,color:"var(--text-muted)"}}/>
+              <input value={search} onChange={e=>setSearch(e.target.value)}
+                placeholder="Search by name or species"
+                style={{paddingLeft:32}}/>
+            </div>
+            <select value={sortKey} onChange={e=>setSortKey(e.target.value)} style={{width:"auto",flexShrink:0}}>
+              {Object.entries(ROSTER_SORTS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+          </div>
+          {sorted.length === 0 ? (
+            <div style={{textAlign:"center",padding:"30px 20px",color:"var(--text-secondary)",fontSize:13}}>
+              No Pokémon match "{search}"
+            </div>
+          ) : (
+            sorted.map(p => (
+              <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit} collapsible/>
+            ))
+          )}
+        </React.Fragment>
       )}
     </div>
   );
@@ -891,6 +979,69 @@ const ROLE_ICONS = { "Ingredients (dish)":"soup", "Ingredients":"soup", "Skills 
 
 const EMPTY_EXPERT = { mainBerry: "", subBerry1: "", subBerry2: "", randomBonus: "ingredient" };
 
+function TopDishTeam({recipe, roster, island, expertSettings}) {
+  const [open, setOpen] = useState(false);
+  const result = open ? buildTeam(roster, island, recipe.name, expertSettings) : null;
+  return (
+    <div style={{border:"1px solid var(--border)",borderRadius:10,marginBottom:8,overflow:"hidden"}}>
+      <div onClick={()=>setOpen(o=>!o)} style={{padding:"10px 12px",display:"flex",
+        justifyContent:"space-between",alignItems:"center",cursor:"pointer",background:"var(--surface-alt)"}}>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:600,color:"var(--text-primary)",overflow:"hidden",
+            textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+            Value {recipe.value} · +{recipe.bonusPercent}% bonus
+          </div>
+        </div>
+        <Icon name={open?"chevron-up":"chevron-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>
+      </div>
+      {open && result && (
+        <div style={{padding:"10px 12px"}}>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10}}>
+            Needs: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
+          </div>
+          {result.missingIngredients.length > 0 && (
+            <div style={{marginBottom:10,padding:"8px 10px",background:"var(--tier-s-bg)",
+              border:"1px solid var(--tier-s)",borderRadius:8,fontSize:11,color:"var(--tier-s)",
+              fontFamily:"monospace",display:"flex",alignItems:"flex-start",gap:5}}>
+              <Icon name="alert-triangle" size={13} style={{marginTop:2,flexShrink:0}}/>
+              No team member produces: {result.missingIngredients.join(", ")}
+            </div>
+          )}
+          {result.team.map(p => (
+            <PokemonCard key={p.id} pokemon={p} role={p.role} collapsible/>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TopDishesGallery({roster, island, expertSettings}) {
+  const [mealType, setMealType] = useState("curry");
+  const top = GAME.recipes.filter(r => r.type === mealType).sort((a,b)=>b.value-a.value).slice(0,5);
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+        letterSpacing:"0.05em"}}>TOP DISHES · TAP ONE TO SEE ITS RECOMMENDED TEAM</div>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {Object.entries(DISH_TYPE_TO_KEY).map(([label, key]) => (
+          <button key={key} onClick={()=>setMealType(key)}
+            style={{flex:1,padding:"8px 4px",borderRadius:8,fontSize:11,fontWeight:600,
+              border:`1px solid ${mealType===key?"var(--accent)":"var(--border)"}`,
+              background:mealType===key?"var(--accent-soft)":"var(--surface)",
+              color:mealType===key?"var(--accent-strong)":"var(--text-secondary)"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {top.map(r => (
+        <TopDishTeam key={r.name} recipe={r} roster={roster} island={island} expertSettings={expertSettings}/>
+      ))}
+    </div>
+  );
+}
+
 function TeamView({roster, onGoAdd}) {
   const [island, setIsland] = useState("");
   const [recipeName, setRecipeName] = useState("");
@@ -992,8 +1143,13 @@ function TeamView({roster, onGoAdd}) {
         </div>
       )}
 
+      {island && expertReady && (
+        <TopDishesGallery roster={roster} island={island}
+          expertSettings={isExpertIsland ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus } : null}/>
+      )}
+
       <div className="field">
-        <label>Snorlax dish (optional)</label>
+        <label>Snorlax dish (optional) — for a specific dish not in the top list above</label>
         <select value={recipeName} onChange={e=>{setRecipeName(e.target.value); setResult(null);}}>
           <option value="">— no specific dish —</option>
           {Object.entries(DISH_TYPE_TO_KEY).map(([label, key]) => (
@@ -1193,7 +1349,8 @@ function App() {
 
   if (!gameLoaded) return (
     <div style={{padding:60,textAlign:"center"}}>
-      <Icon name="moon-stars" size={40} style={{color:"var(--accent)",marginBottom:16}}/>
+      <img src="./icon-header.png" alt="" width={48} height={48}
+        style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
       <div style={{fontSize:14,color:"var(--text-secondary)",fontFamily:"monospace"}}>Loading game data...</div>
     </div>
   );
@@ -1208,7 +1365,8 @@ function App() {
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
           <div style={{display:"flex",alignItems:"center",gap:8,fontSize:17,fontWeight:600,color:"var(--text-primary)"}}>
-            <Icon name="moon-stars" size={18} style={{color:"var(--accent)"}}/> SLEEP OPTIMIZER
+            <img src="./icon-header.png" alt="" width={22} height={22}
+              style={{borderRadius:"50%",border:"1px solid var(--border)"}}/> SLEEP OPTIMIZER
           </div>
           <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",letterSpacing:"0.1em"}}>
             PWA · OFFLINE READY · v{GAME.meta.version}
@@ -1227,6 +1385,7 @@ function App() {
           <AddView
             onSave={p => { saveToRoster(p); }}
             onCompareAdd={addToCompare}
+            onUndo={removeFromRoster}
             editTarget={editTarget}
             onDoneEdit={() => { setEditTarget(null); setView(VIEWS.ROSTER); }}/>
         )}
