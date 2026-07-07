@@ -1,6 +1,6 @@
 {
-  "name": "Sleep Optimizer - Pokémon Sleep",
-  "short_name": "Sleep Optimizer",
+  "name": "DrowsyCraft - Pokémon Sleep",
+  "short_name": "DrowsyCraft",
   "description": "Comparador y roster manager para Pokémon Sleep",
   "start_url": "./index.html",
   "display": "standalone",

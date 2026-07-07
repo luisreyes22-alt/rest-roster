@@ -1,4 +1,4 @@
-# Sleep Optimizer - user guide
+# DrowsyCraft - user guide
 
 A personal PWA to compare Pokemon Sleep helpers, keep a roster, and build the
 best weekly team - built for a running Drowsy Power competition between two
@@ -52,6 +52,14 @@ edit/remove buttons.
   else) and merges it into your current roster. Pokemon with an ID already in
   your roster are skipped, so importing twice is safe.
 
+## Pokedex
+
+A collection view of your roster grouped by species: one tile per unique
+species you own (sprite, name, dex number), ordered by Pokédex number, with
+an "x3"-style badge when you own more than one of a species. Tap a tile to
+expand it inline and see every individual of that species as regular roster
+cards (tap again to collapse; opening one species closes the previous).
+
 ## Team
 
 Builds a 5-Pokemon team from your roster for a specific week, considering two
@@ -98,6 +106,15 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06 (rebrand + Pokedex)**: The app is now called **DrowsyCraft**
+  (was "Sleep Optimizer") - title, header, and PWA install name all updated.
+  New Pokedex tab: your roster grouped by species, one tile per unique
+  species sorted by dex number with an ownership count badge; tap a tile to
+  expand all your copies of that species inline. Fixed 9 more misidentified
+  Pokemon, all evolution-stage mix-ups (Goomba is a Quagsire, not Wooper;
+  Blue, Cortés, and SsgssBeebs are Blastoise, not Wartortle; Dr.Wiggly-S is
+  Wigglytuff; Kykio is Gardevoir, not Ralts; Hot Dog and David are Aggron,
+  not Aron; Pippi BF is Clefable, not Clefairy).
 - **2026-07-06 (usability pass 2)**: App icon and header logo are now Luis's
   dog instead of the moon (the light/dark toggle keeps its sun/moon icons -
   those are functional). Roster gained search and 8 sort options

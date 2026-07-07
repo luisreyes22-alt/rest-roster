@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="theme-color" content="#F1F8E9" id="theme-color-meta"/>
-<title>Sleep Optimizer</title>
+<title>DrowsyCraft</title>
 <link rel="manifest" href="./manifest.json"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -97,7 +97,7 @@ const TIER_BG = { S:"var(--tier-s-bg)", A:"var(--tier-a-bg)", B:"var(--tier-b-bg
 const TIER_SCORES  = { S:5, A:4, B:3, C:2, D:1 };
 const SLOT_WEIGHTS = { 10:1.5, 25:1.25, 50:1.0, 70:0.75, 80:0.5 };
 const SLOT_LEVELS  = [10, 25, 50, 70, 80];
-const VIEWS = { ADD:"add", COMPARE:"compare", ROSTER:"roster", TEAM:"team" };
+const VIEWS = { ADD:"add", COMPARE:"compare", ROSTER:"roster", POKEDEX:"pokedex", TEAM:"team" };
 
 // ── Global game data (loaded async) ──────────────────────────────────────────
 let GAME = null;
@@ -854,6 +854,86 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
   );
 }
 
+// ── Pokedex View ──────────────────────────────────────────────────────────────
+function PokedexView({roster, onRemove, onEdit, onGoAdd}) {
+  const [expanded, setExpanded] = useState(null);
+
+  if (roster.length === 0) return (
+    <div style={{textAlign:"center",padding:"50px 20px"}}>
+      <img src="./icon-header.png" alt="" width={48} height={48}
+        style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
+      <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your Pokédex is empty</div>
+      <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
+        Every species you own will show up here
+      </div>
+      <button onClick={onGoAdd}
+        style={{padding:"12px 24px",background:"var(--accent)",
+          border:"none",borderRadius:"var(--radius-control)",color:"var(--on-accent)",fontSize:13,fontWeight:600,
+          display:"inline-flex",alignItems:"center",gap:6}}>
+        <Icon name="plus" size={15}/> ADD POKÉMON
+      </button>
+    </div>
+  );
+
+  const bySpecies = {};
+  roster.forEach(p => { (bySpecies[p.species] = bySpecies[p.species] || []).push(p); });
+  const speciesList = Object.keys(bySpecies).sort((a,b) =>
+    (GAME?.species?.[a]?.pokedexNumber || 9999) - (GAME?.species?.[b]?.pokedexNumber || 9999));
+
+  return (
+    <div>
+      <div style={{marginBottom:16}}>
+        <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>YOUR POKÉDEX</div>
+        <div style={{fontSize:18,fontWeight:600}}>{speciesList.length} species · {roster.length} Pokémon</div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8}}>
+        {speciesList.map(sp => {
+          const owned = bySpecies[sp];
+          const dexNo = GAME?.species?.[sp]?.pokedexNumber;
+          const isOpen = expanded === sp;
+          return (
+            <React.Fragment key={sp}>
+              <div onClick={()=>setExpanded(isOpen ? null : sp)}
+                style={{background:isOpen?"var(--accent-soft)":"var(--surface)",
+                  border:`1px solid ${isOpen?"var(--accent)":"var(--border)"}`,
+                  borderRadius:"var(--radius-control)",padding:"12px 6px 10px",cursor:"pointer",
+                  display:"flex",flexDirection:"column",alignItems:"center",gap:6,position:"relative"}}>
+                {owned.length > 1 && (
+                  <div style={{position:"absolute",top:-7,right:-4,background:"var(--accent)",
+                    color:"var(--on-accent)",fontSize:10,fontWeight:700,fontFamily:"monospace",
+                    padding:"2px 7px",borderRadius:20}}>x{owned.length}</div>
+                )}
+                <PokemonSprite species={sp} size={44}/>
+                <div style={{textAlign:"center",minWidth:0,width:"100%"}}>
+                  <div style={{fontSize:11,fontWeight:600,color:"var(--text-primary)",
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sp}</div>
+                  {dexNo && (
+                    <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace"}}>
+                      #{String(dexNo).padStart(3,"0")}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {isOpen && (
+                <div style={{gridColumn:"1 / -1"}}>
+                  <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",
+                    margin:"4px 0 8px",letterSpacing:"0.05em"}}>
+                    YOUR {sp.toUpperCase()} ({owned.length})
+                  </div>
+                  {[...owned].sort((a,b) => totalScore(b) - totalScore(a)).map(p => (
+                    <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit} collapsible/>
+                  ))}
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Team Builder ──────────────────────────────────────────────────────────────
 const DISH_TYPE_TO_KEY = { "Curries & Stews": "curry", "Salads": "salad", "Desserts & Drinks": "dessert" };
 
@@ -1336,6 +1416,7 @@ function App() {
     { id: VIEWS.ADD,     label: "Add",      icon: "plus" },
     { id: VIEWS.COMPARE, label: "Compare",  icon: "swords" },
     { id: VIEWS.ROSTER,  label: "Roster",   icon: "clipboard-list" },
+    { id: VIEWS.POKEDEX, label: "Pokedex",  icon: "pokeball" },
     { id: VIEWS.TEAM,    label: "Team",     icon: "beach" },
   ];
 
@@ -1366,7 +1447,7 @@ function App() {
         <div>
           <div style={{display:"flex",alignItems:"center",gap:8,fontSize:17,fontWeight:600,color:"var(--text-primary)"}}>
             <img src="./icon-header.png" alt="" width={22} height={22}
-              style={{borderRadius:"50%",border:"1px solid var(--border)"}}/> SLEEP OPTIMIZER
+              style={{borderRadius:"50%",border:"1px solid var(--border)"}}/> DROWSYCRAFT
           </div>
           <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",letterSpacing:"0.1em"}}>
             PWA · OFFLINE READY · v{GAME.meta.version}
@@ -1397,6 +1478,10 @@ function App() {
         {view === VIEWS.ROSTER && (
           <RosterView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
             onGoAdd={()=>setView(VIEWS.ADD)} onExport={exportRoster} onImport={importRoster}/>
+        )}
+        {view === VIEWS.POKEDEX && (
+          <PokedexView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
+            onGoAdd={()=>setView(VIEWS.ADD)}/>
         )}
         {view === VIEWS.TEAM && (
           <TeamView roster={roster} onGoAdd={()=>setView(VIEWS.ADD)}/>
