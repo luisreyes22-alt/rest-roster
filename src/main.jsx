@@ -1,4 +1,5 @@
-const { useState, useEffect, useRef } = React;
+import React, { useState, useEffect, useRef } from "react";
+import { createRoot } from "react-dom/client";
 
 // ── Tier config ───────────────────────────────────────────────────────────────
 const TIER_COLORS = { S:"var(--tier-s)", A:"var(--tier-a)", B:"var(--tier-b)", C:"var(--tier-c)", D:"var(--tier-d)" };
@@ -1964,4 +1965,4 @@ function App() {
   );
 }
 
-ReactDOM.render(<App/>, document.getElementById("root"));
+createRoot(document.getElementById("root")).render(<App/>);
