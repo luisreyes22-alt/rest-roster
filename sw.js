@@ -4,6 +4,7 @@ const CACHE_NAME = "sleep-optimizer-v10";
 const ASSETS = [
   "./",
   "./index.html",
+  "./app.jsx",
   "./gameData.json",
   "./species-sprite-ids.json",
   "./manifest.json",
