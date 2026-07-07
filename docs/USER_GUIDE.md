@@ -26,6 +26,11 @@ specific to *your* Pokemon: nickname, level, RP, nature, and subskills.
 - While entering several Pokemon in a row, a counter above the form tracks
   how many you've saved this session, with an **UNDO LAST** button in case
   you fat-fingered the last one.
+- **Ingredients (optional)**: record which ingredient your Pokemon actually
+  rolled at Lv.30 and Lv.60 (the dropdowns only offer that species' possible
+  options, and lock below the unlock level). Leaving them as "unknown" is
+  safe - the Team Builder then assumes any of the species' options - but
+  filling them in makes dish matching precise.
 - **Compare** vs **Save to roster**: Compare adds it to a temporary
   side-by-side list (cleared on refresh); Save to roster keeps it permanently
   in local storage.
@@ -50,7 +55,12 @@ edit/remove buttons.
   backup, or to move your roster to another device/browser.
 - **Import**: loads a `.json` file (your own export, or one shared by someone
   else) and merges it into your current roster. Pokemon with an ID already in
-  your roster are skipped, so importing twice is safe.
+  your roster are skipped, so importing twice is safe. Entries with data the
+  game doesn't recognize (unknown species, skills, subskills, or ingredients,
+  bad levels) are rejected, and the confirmation message tells you how many
+  came in, were already owned, or were rejected and why.
+- **Remove** asks for a second tap ("tap again to remove") before actually
+  deleting - a stray touch can't wipe out a Pokemon anymore.
 
 ## Pokedex
 
@@ -106,6 +116,18 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06 (scoring honesty + ingredients)**: Subskill lock state is now
+  derived from the Pokemon's current level instead of frozen at save time,
+  so leveling past 50/70/80 immediately counts those subskills. Imports are
+  validated against real game data (bad entries rejected with reasons).
+  Cards show the SCORE the lists sort by, and natures finally affect it
+  (real multipliers from Neroli's Lab: +speed x1.1 / -speed x0.925, skill
+  chance x1.2 / x0.8) - 107 of 154 roster scores shifted. New optional
+  Lv.30/Lv.60 ingredient fields on the Add form make dish matching honest:
+  a Pokemon only "covers" ingredients its level can actually produce.
+  Removing a Pokemon now takes a confirming second tap. Under the hood, the
+  app code moved from inline in index.html to app.jsx, and the roster
+  build script is checked in at scripts/build-roster.cjs.
 - **2026-07-06 (rebrand + Pokedex)**: The app is now called **DrowsyCraft**
   (was "Sleep Optimizer") - title, header, and PWA install name all updated.
   New Pokedex tab: your roster grouped by species, one tile per unique
