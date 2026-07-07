@@ -427,7 +427,8 @@ function SpeciesInput({value, onSelect}) {
 const EMPTY_FORM = {
   species: "", name: "", level: "", rp: "", freqMins: "", freqSecs: "",
   carryLimit: "", nature: "", mainSkill: "", mainSkillLevel: "1",
-  sub10: "", sub25: "", sub50: "", sub70: "", sub80: ""
+  sub10: "", sub25: "", sub50: "", sub70: "", sub80: "",
+  ing30: "", ing60: ""
 };
 
 function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
@@ -456,6 +457,8 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
         sub50: editTarget.subskills?.[50]?.name || "",
         sub70: editTarget.subskills?.[70]?.name || "",
         sub80: editTarget.subskills?.[80]?.name || "",
+        ing30: editTarget.ingredients?.["30"] || "",
+        ing60: editTarget.ingredients?.["60"] || "",
       });
     }
   }, [editTarget]);
@@ -475,6 +478,9 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
     [["sub10",10],["sub25",25],["sub50",50],["sub70",70],["sub80",80]].forEach(([k, lv]) => {
       if (form[k]) subskills[lv] = { name: form[k], locked: level < lv };
     });
+    const ingredients = {};
+    if (form.ing30) ingredients["30"] = form.ing30;
+    if (form.ing60) ingredients["60"] = form.ing60;
     return {
       id: editTarget?.id || makeId(form.name || form.species),
       name: form.name || form.species,
@@ -488,7 +494,8 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
       frequency: `${parseInt(form.freqMins)||0} mins ${parseInt(form.freqSecs)||0} secs`,
       carryLimit: parseInt(form.carryLimit) || 0,
       nature: form.nature,
-      subskills
+      subskills,
+      ingredients
     };
   }
 
@@ -580,6 +587,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
           onSelect={s => {
             const sp = GAME?.species?.[s] || {};
             setForm(prev => ({...prev, species: s,
+              ing30: "", ing60: "", // rolled ingredients are species-specific
               mainSkill: sp.mainSkill || "",
               freqMins: sp.baseFrequency ? String(Math.floor(sp.baseFrequency / 60)) : prev.freqMins,
               freqSecs: sp.baseFrequency ? String(sp.baseFrequency % 60) : prev.freqSecs,
@@ -703,6 +711,39 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
         <SubSelect slotKey="sub70" slotLevel={70}/>
         <SubSelect slotKey="sub80" slotLevel={80}/>
       </div>
+
+      {/* Ingredients — which of the species' possible rolls THIS pokemon got.
+          Optional: unknown slots fall back to the whole species pool in the
+          Team Builder, so leaving these empty is safe, just less precise. */}
+      {speciesData && (
+        <React.Fragment>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",margin:"14px 0 8px",
+            letterSpacing:"0.08em"}}>INGREDIENTS (optional — sharpens dish matching)</div>
+          <div style={{display:"flex",gap:10}}>
+            <div className="field" style={{flex:1}}>
+              <label>Base</label>
+              <div style={{padding:"11px 12px",background:"var(--surface-alt)",border:"1px solid var(--border)",
+                borderRadius:"var(--radius-control)",fontSize:12,color:"var(--text-secondary)"}}>
+                {[...new Set(speciesData.ingredient0.map(i=>i.ingredient))].join(", ")}
+              </div>
+            </div>
+            {[["ing30",30,"ingredient30"],["ing60",60,"ingredient60"]].map(([key, slotLevel, gameKey]) => {
+              const locked = level > 0 && level < slotLevel;
+              const options = [...new Set(speciesData[gameKey].map(i=>i.ingredient))];
+              return (
+                <div key={key} className="field" style={{flex:1}}>
+                  <label style={{display:"flex",alignItems:"center",gap:4}}>Lv.{slotLevel} {locked && <Icon name="lock" size={10}/>}</label>
+                  <select value={form[key]} onChange={e=>set(key, e.target.value)}
+                    style={{opacity: locked ? 0.6 : 1, fontSize:12, padding:"9px 8px"}}>
+                    <option value="">— unknown —</option>
+                    {options.map(ing => <option key={ing} value={ing}>{ing}</option>)}
+                  </select>
+                </div>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      )}
 
       {/* Actions */}
       <div style={{display:"flex",gap:10,marginTop:16}}>
@@ -969,11 +1010,26 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd}) {
 // ── Team Builder ──────────────────────────────────────────────────────────────
 const DISH_TYPE_TO_KEY = { "Curries & Stews": "curry", "Salads": "salad", "Desserts & Drinks": "dessert" };
 
-function speciesIngredientPool(speciesName) {
-  const sp = GAME.species[speciesName];
+// Level-gated ingredient pool for a specific pokemon. Slot 1 is always the
+// species' base ingredient (never stored - derived, like subskill locks).
+// Slots 2/3 only exist once the pokemon reaches Lv.30/Lv.60; when the
+// individual's actual roll for a slot is known (p.ingredients["30"]/["60"])
+// only that ingredient counts, otherwise every option the species can roll
+// there is assumed possible.
+function individualIngredientPool(p) {
+  const sp = GAME.species[p.species];
   if (!sp) return new Set();
-  const all = [...sp.ingredient0, ...sp.ingredient30, ...sp.ingredient60];
-  return new Set(all.map(i => i.ingredient));
+  const pool = new Set(sp.ingredient0.map(i => i.ingredient));
+  const lvl = parseInt(p.level) || 0;
+  if (lvl >= 30) {
+    const chosen = p.ingredients?.["30"];
+    (chosen ? [chosen] : sp.ingredient30.map(i => i.ingredient)).forEach(i => pool.add(i));
+  }
+  if (lvl >= 60) {
+    const chosen = p.ingredients?.["60"];
+    (chosen ? [chosen] : sp.ingredient60.map(i => i.ingredient)).forEach(i => pool.add(i));
+  }
+  return pool;
 }
 
 // Greengrass Isle (Expert Mode): berries aren't fixed - each week has 1 main favorite +
@@ -996,7 +1052,7 @@ function buildTeam(roster, islandName, recipeName, expertSettings) {
   const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
   const requiredIngredients = recipe ? new Set(recipe.ingredients.map(i => i.ingredient)) : null;
   const ingredientMatch = p => requiredIngredients &&
-    [...speciesIngredientPool(p.species)].some(ing => requiredIngredients.has(ing));
+    [...individualIngredientPool(p)].some(ing => requiredIngredients.has(ing));
 
   const isExpert = island.expert && expertSettings;
 
@@ -1075,7 +1131,7 @@ function buildTeam(roster, islandName, recipeName, expertSettings) {
   let missingIngredients = [];
   if (requiredIngredients) {
     const covered = new Set();
-    team.forEach(p => speciesIngredientPool(p.species).forEach(ing => { if (requiredIngredients.has(ing)) covered.add(ing); }));
+    team.forEach(p => individualIngredientPool(p).forEach(ing => { if (requiredIngredients.has(ing)) covered.add(ing); }));
     missingIngredients = [...requiredIngredients].filter(ing => !covered.has(ing));
     if (missingIngredients.length > 0) {
       warnings.push(`No team member produces: ${missingIngredients.join(", ")}`);
@@ -1436,6 +1492,9 @@ function App() {
     if (!GAME.mainSkills[p.mainSkill]) return "unknown main skill";
     for (const entry of Object.values(p.subskills || {})) {
       if (entry?.name && !GAME.subskills[entry.name]) return "unknown subskill";
+    }
+    for (const ing of Object.values(p.ingredients || {})) {
+      if (ing && !GAME.ingredients.some(i => i.name === ing)) return "unknown ingredient";
     }
     if (!Number.isFinite(Number(p.level)) || Number(p.level) <= 0) return "bad level";
     if (p.rp != null && !Number.isFinite(Number(p.rp))) return "bad RP";
