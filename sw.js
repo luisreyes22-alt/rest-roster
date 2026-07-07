@@ -1,10 +1,11 @@
 // Sleep Optimizer Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v6";
+const CACHE_NAME = "sleep-optimizer-v7";
 
 const ASSETS = [
   "./",
   "./index.html",
   "./gameData.json",
+  "./species-sprite-ids.json",
   "./manifest.json",
   "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",

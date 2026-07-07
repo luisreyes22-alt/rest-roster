@@ -33,7 +33,8 @@ comparing, either add the winner to your roster or clear the list.
 ## Roster
 
 Your permanent collection, sorted best to worst by the same scoring model.
-From here you can edit a Pokemon's details or remove it.
+Each entry shows collapsed (sprite, name, species, RP) - tap a row to expand
+it and see full stats, subskills, and the edit/remove buttons.
 
 - **Export**: downloads your whole roster as a `.json` file - useful as a
   backup, or to move your roster to another device/browser.
@@ -67,7 +68,9 @@ things Snorlax cares about:
 
 The result shows a balance summary (how many Berries/Ingredients/Skills
 specialists made the team, and how many match the island), any warnings, and
-the 5 chosen Pokemon each tagged with why they were picked.
+the 5 chosen Pokemon each tagged with why they were picked. All 5 show
+collapsed together so you can see the whole team at a glance - tap any of
+them to expand its full stats.
 
 ## Common workflows
 
@@ -83,6 +86,11 @@ in-game first, then go to Team, select both, and build.
 
 ## Session log
 
+- **2026-07-06 (usability pass)**: Roster and Team result lists now show
+  Pokemon collapsed (with a species face icon) by default - tap a row to
+  expand full details. Team result shows all 5 members together instead of
+  a long scroll. Visual theme switched from the warm amber palette to a
+  Greengrass Isle-inspired green/sky palette (light and dark).
 - **2026-07-06 (later)**: Luis's real roster grew from 101 to 154 Pokemon -
   53 more bulk-extracted from new in-game screenshots and merged into the
   same importable file. Load the updated file via Roster > IMPORT (existing
