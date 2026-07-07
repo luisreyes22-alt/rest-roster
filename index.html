@@ -112,11 +112,18 @@ let _idCounter = 0;
 const makeId = n => `${n}_${Date.now()}_${++_idCounter}`;
 const getTier = n => (GAME?.subskills?.[n]?.tier) || "C";
 
-function scoreSubskills(subskills) {
+// A subskill slot is locked purely by the pokemon's CURRENT level. This is
+// derived at read time, never trusted from storage: the stored `locked` flag
+// (still written for backward compatibility) goes stale the moment a pokemon
+// levels past a slot threshold.
+const isSubskillLocked = (pokemonLevel, slotLevel) => (parseInt(pokemonLevel) || 0) < slotLevel;
+
+function scoreSubskills(subskills, pokemonLevel) {
   let s = 0;
-  for (const [level, entry] of Object.entries(subskills)) {
-    if (!entry || entry.locked || !entry.name) continue;
-    s += TIER_SCORES[getTier(entry.name)] * (SLOT_WEIGHTS[parseInt(level)] || 1);
+  for (const [slot, entry] of Object.entries(subskills)) {
+    if (!entry || !entry.name) continue;
+    if (isSubskillLocked(pokemonLevel, parseInt(slot))) continue;
+    s += TIER_SCORES[getTier(entry.name)] * (SLOT_WEIGHTS[parseInt(slot)] || 1);
   }
   return Math.round(s * 10) / 10;
 }
@@ -139,7 +146,7 @@ function scoreMainSkill(p) {
 }
 
 function totalScore(p) {
-  return scoreSubskills(p.subskills) * 2 + 3600 / freqToSecs(p.frequency) + scoreMainSkill(p);
+  return scoreSubskills(p.subskills, p.level) * 2 + 3600 / freqToSecs(p.frequency) + scoreMainSkill(p);
 }
 
 // ── UI atoms ──────────────────────────────────────────────────────────────────
@@ -214,7 +221,7 @@ function Toast({msg}) {
 
 function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemoveFromRoster, onEdit, collapsible, role, defaultOpen}) {
   const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * 10) / 10;
-  const subskillScore = scoreSubskills(pokemon.subskills);
+  const subskillScore = scoreSubskills(pokemon.subskills, pokemon.level);
   const rankLabels = ["#1 RECOMMENDED","#2","#3","#4","#5"];
   const nat = GAME?.natures?.[pokemon.nature] || {};
   const [open, setOpen] = useState(!collapsible || !!defaultOpen);
@@ -312,7 +319,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
       {SLOT_LEVELS.map(lv => {
         const entry = pokemon.subskills?.[lv];
         return entry?.name
-          ? <SubskillBadge key={lv} name={entry.name} locked={entry.locked} level={lv}/>
+          ? <SubskillBadge key={lv} name={entry.name} locked={isSubskillLocked(pokemon.level, lv)} level={lv}/>
           : null;
       })}
 
@@ -1395,16 +1402,40 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
+  // Returns null if the entry is safe to import, otherwise a short reason.
+  // Anything that would silently break scoring (unknown species/skill/subskill,
+  // non-numeric level) gets rejected here instead of corrupting localStorage.
+  function invalidReason(p) {
+    if (!p || typeof p !== "object") return "not an object";
+    if (!GAME.species[p.species]) return "unknown species";
+    if (!GAME.mainSkills[p.mainSkill]) return "unknown main skill";
+    for (const entry of Object.values(p.subskills || {})) {
+      if (entry?.name && !GAME.subskills[entry.name]) return "unknown subskill";
+    }
+    if (!Number.isFinite(Number(p.level)) || Number(p.level) <= 0) return "bad level";
+    if (p.rp != null && !Number.isFinite(Number(p.rp))) return "bad RP";
+    return null;
+  }
+
   function importRoster(text) {
     try {
       const arr = JSON.parse(text);
       if (!Array.isArray(arr)) throw new Error();
-      setRoster(prev => {
-        const ids = new Set(prev.map(p => p.id));
-        const news = arr.filter(p => !ids.has(p.id));
-        return [...prev, ...news];
+      const reasons = {};
+      const valid = arr.filter(p => {
+        const r = invalidReason(p);
+        if (r) { reasons[r] = (reasons[r] || 0) + 1; return false; }
+        return true;
       });
-      showToast(`✓ Roster imported`);
+      const ids = new Set(roster.map(p => p.id));
+      const news = valid.filter(p => !ids.has(p.id));
+      const dupes = valid.length - news.length;
+      setRoster(prev => [...prev, ...news]);
+      const rejected = arr.length - valid.length;
+      let msg = `✓ ${news.length} imported`;
+      if (dupes > 0) msg += ` · ${dupes} already owned`;
+      if (rejected > 0) msg += ` · ${rejected} rejected (${Object.entries(reasons).map(([r,c]) => `${r} x${c}`).join(", ")})`;
+      showToast(msg);
     } catch {
       showToast("⚠ Invalid file");
     }

@@ -1,5 +1,5 @@
 // DrowsyCraft Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v9";
+const CACHE_NAME = "sleep-optimizer-v10";
 
 const ASSETS = [
   "./",
