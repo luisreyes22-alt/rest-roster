@@ -145,8 +145,24 @@ function scoreMainSkill(p) {
   return Math.round(((curveValue / 1.5) * 3) * 10) / 10; // scaled to ~0-7 range
 }
 
+// Nature modifiers, taken from nerolis-lab common/src/types/nature/nature.ts
+// (not guessed): +speed natures help at a x1.1 rate, -speed at x0.925 (the
+// real game is asymmetric), skill-chance natures are x1.2 / x0.8. The
+// ingredient/energy/EXP axes aren't part of this score model, so natures
+// touching only those stay neutral here.
+function natureMods(natureName) {
+  const n = GAME?.natures?.[natureName] || {};
+  return {
+    speed: n.buff === "Speed of help" ? 1.1 : n.nerf === "Speed of help" ? 0.925 : 1,
+    skill: n.buff === "Main skill chance" ? 1.2 : n.nerf === "Main skill chance" ? 0.8 : 1,
+  };
+}
+
 function totalScore(p) {
-  return scoreSubskills(p.subskills, p.level) * 2 + 3600 / freqToSecs(p.frequency) + scoreMainSkill(p);
+  const mods = natureMods(p.nature);
+  return scoreSubskills(p.subskills, p.level) * 2
+       + (3600 / freqToSecs(p.frequency)) * mods.speed
+       + scoreMainSkill(p) * mods.skill;
 }
 
 // ── UI atoms ──────────────────────────────────────────────────────────────────
@@ -220,8 +236,11 @@ function Toast({msg}) {
 }
 
 function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemoveFromRoster, onEdit, collapsible, role, defaultOpen}) {
-  const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * 10) / 10;
+  const mods = natureMods(pokemon.nature);
+  const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * mods.speed * 10) / 10;
   const subskillScore = scoreSubskills(pokemon.subskills, pokemon.level);
+  const mainSkillPwr  = Math.round(scoreMainSkill(pokemon) * mods.skill * 10) / 10;
+  const score         = Math.round(totalScore(pokemon) * 10) / 10;
   const rankLabels = ["#1 RECOMMENDED","#2","#3","#4","#5"];
   const nat = GAME?.natures?.[pokemon.nature] || {};
   const [open, setOpen] = useState(!collapsible || !!defaultOpen);
@@ -269,7 +288,13 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
             )}
           </div>
         </div>
-        <div style={{textAlign:"right",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+        <div style={{textAlign:"right",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          <div>
+            <div style={{fontSize:collapsible && !open ? 12 : 14,fontWeight:600,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+              {score}
+            </div>
+            <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace"}}>SCORE</div>
+          </div>
           <div>
             <div style={{fontSize:collapsible && !open ? 15 : 20,fontWeight:600,color:"var(--accent)",fontFamily:"monospace"}}>
               {(pokemon.rp||0).toLocaleString()}
@@ -287,7 +312,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
       <div style={{background:"var(--surface-alt)",borderRadius:10,padding:12,marginBottom:14}}>
         <RadarBar label="HELPS/HR"       value={helpsPerHour}       max={2.5} color="var(--success)"/>
         <RadarBar label="SUBSKILL SCORE" value={subskillScore}      max={12}  color="var(--info)"/>
-        <RadarBar label="MAIN SKILL PWR" value={scoreMainSkill(pokemon)} max={7} color="var(--tier-s)"/>
+        <RadarBar label="MAIN SKILL PWR" value={mainSkillPwr} max={7} color="var(--tier-s)"/>
         <RadarBar label="CARRY LIMIT"    value={pokemon.carryLimit||0} max={25} color="var(--text-secondary)"/>
       </div>
 
@@ -756,7 +781,7 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
       ))}
       <div style={{padding:12,background:"var(--surface-alt)",borderRadius:8,
         fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",lineHeight:1.6}}>
-        * Analysis based on active subskills + projection to Lv.70 · Data v{GAME?.meta?.version}
+        * Score = unlocked subskills (weighted by slot) ×2 + helps/hour + main-skill power, the last two adjusted by nature · Data v{GAME?.meta?.version}
       </div>
     </div>
   );
