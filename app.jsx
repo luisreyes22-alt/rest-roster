@@ -121,6 +121,7 @@ function Toast({msg}) {
 // onUpdateIngredient is supplied (roster-backed views); read-only elsewhere (Compare/Team).
 function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
   const level = parseInt(pokemon.level) || 0;
+  const baseIngredient = speciesData.ingredient0[0]?.ingredient;
   const base = [...new Set(speciesData.ingredient0.map(i=>i.ingredient))].join(", ");
   const slots = [["30", 30, "ingredient30"], ["60", 60, "ingredient60"]];
   return (
@@ -130,8 +131,10 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 100px"}}>
           <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3}}>BASE</div>
-          <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
-            borderRadius:8,fontSize:11,color:"var(--text-secondary)"}}>{base}</div>
+          <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:"var(--surface-alt)",
+            border:"1px solid var(--border)",borderRadius:8,fontSize:11,color:"var(--text-secondary)"}}>
+            <IngredientIcon name={baseIngredient} size={15}/> {base}
+          </div>
         </div>
         {slots.map(([key, slotLevel, gameKey]) => {
           const locked = level < slotLevel;
@@ -143,25 +146,18 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
                 <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3}}>
                   LV.{slotLevel}{locked ? " (locked)" : ""}
                 </div>
-                <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
-                  borderRadius:8,fontSize:11,color:locked?"var(--text-muted)":"var(--text-secondary)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,padding:"8px 10px",background:"var(--surface-alt)",
+                  border:"1px solid var(--border)",borderRadius:8,fontSize:11,color:locked?"var(--text-muted)":"var(--text-secondary)"}}>
+                  {!locked && <IngredientIcon name={value} size={14}/>}
                   {locked ? "—" : (value || "unknown")}
                 </div>
               </div>
             );
           }
           return (
-            <div key={key} style={{flex:"1 1 100px"}}>
-              <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3,
-                display:"flex",alignItems:"center",gap:4}}>
-                LV.{slotLevel} {locked && <Icon name="lock" size={9}/>}
-              </div>
-              <select value={value} disabled={locked}
-                onChange={e=>onUpdateIngredient(pokemon.id, key, e.target.value)}
-                style={{opacity:locked?0.5:1,fontSize:11,padding:"7px 8px"}}>
-                <option value="">— unknown —</option>
-                {options.map(ing => <option key={ing} value={ing}>{ing}</option>)}
-              </select>
+            <div key={key} style={{flex:"1 1 130px"}}>
+              <IngredientPicker label={`Lv.${slotLevel}`} value={value} options={options} locked={locked}
+                onChange={v=>onUpdateIngredient(pokemon.id, key, v)}/>
             </div>
           );
         })}
@@ -693,22 +689,21 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
           <div style={{display:"flex",gap:10}}>
             <div className="field" style={{flex:1}}>
               <label>Base</label>
-              <div style={{padding:"11px 12px",background:"var(--surface-alt)",border:"1px solid var(--border)",
-                borderRadius:"var(--radius-control)",fontSize:12,color:"var(--text-secondary)"}}>
-                {[...new Set(speciesData.ingredient0.map(i=>i.ingredient))].join(", ")}
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"var(--surface-alt)",
+                border:"1px solid var(--border)",borderRadius:"var(--radius-control)"}}>
+                <IngredientIcon name={speciesData.ingredient0[0]?.ingredient} size={18}/>
+                <span style={{fontSize:12,color:"var(--text-secondary)"}}>
+                  {[...new Set(speciesData.ingredient0.map(i=>i.ingredient))].join(", ")}
+                </span>
               </div>
             </div>
             {[["ing30",30,"ingredient30"],["ing60",60,"ingredient60"]].map(([key, slotLevel, gameKey]) => {
               const locked = level > 0 && level < slotLevel;
               const options = [...new Set(speciesData[gameKey].map(i=>i.ingredient))];
               return (
-                <div key={key} className="field" style={{flex:1}}>
-                  <label style={{display:"flex",alignItems:"center",gap:4}}>Lv.{slotLevel} {locked && <Icon name="lock" size={10}/>}</label>
-                  <select value={form[key]} onChange={e=>set(key, e.target.value)}
-                    style={{opacity: locked ? 0.6 : 1, fontSize:12, padding:"9px 8px"}}>
-                    <option value="">— unknown —</option>
-                    {options.map(ing => <option key={ing} value={ing}>{ing}</option>)}
-                  </select>
+                <div key={key} style={{flex:1}}>
+                  <IngredientPicker label={`Lv.${slotLevel}`} value={form[key]} options={options} locked={locked}
+                    onChange={v=>set(key, v)}/>
                 </div>
               );
             })}
@@ -874,20 +869,26 @@ function BulkEditRow({pokemon, onUpdateField}) {
           {subskillNames.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
       </td>
-      <td style={{...cell("ing30"),width:130}}>
+      <td style={{...cell("ing30"),width:150}}>
         {speciesData && level >= 30 ? (
-          <select value={pokemon.ingredients?.["30"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing30",e.target.value)}>
-            <option value="">—</option>
-            {[...new Set(speciesData.ingredient30.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
-          </select>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <IngredientIcon name={pokemon.ingredients?.["30"]} size={14}/>
+            <select value={pokemon.ingredients?.["30"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing30",e.target.value)}>
+              <option value="">—</option>
+              {[...new Set(speciesData.ingredient30.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
+            </select>
+          </div>
         ) : <Icon name="lock" size={12} style={{color:"var(--text-muted)"}}/>}
       </td>
-      <td style={{...cell("ing60"),width:130}}>
+      <td style={{...cell("ing60"),width:150}}>
         {speciesData && level >= 60 ? (
-          <select value={pokemon.ingredients?.["60"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing60",e.target.value)}>
-            <option value="">—</option>
-            {[...new Set(speciesData.ingredient60.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
-          </select>
+          <div style={{display:"flex",alignItems:"center",gap:5}}>
+            <IngredientIcon name={pokemon.ingredients?.["60"]} size={14}/>
+            <select value={pokemon.ingredients?.["60"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing60",e.target.value)}>
+              <option value="">—</option>
+              {[...new Set(speciesData.ingredient60.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
+            </select>
+          </div>
         ) : <Icon name="lock" size={12} style={{color:"var(--text-muted)"}}/>}
       </td>
     </tr>
@@ -1259,6 +1260,83 @@ function BerryPicker({label, value, onChange, disabledNames}) {
                   border:`1px solid ${selected?"var(--accent)":"transparent"}`}}>
                 <BerryIcon name={b.name} size={28}/>
                 <span style={{fontSize:9,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>{b.name}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pokemon Sleep's 19 cooking ingredients are game-specific assets - unlike berries
+// (real Pokemon items already hosted on PokeAPI), no open sprite source exists for
+// these. Each maps to the closest-fit icon in Phosphor's existing generic set
+// (verified present in the library, not guessed) rather than hotlinking a
+// wiki's game-art scans of uncertain license.
+const INGREDIENT_ICON = {
+  "Fancy Apple": "orange",
+  "Moomoo Milk": "cow",
+  "Greengrass Soybeans": "leaf",
+  "Honey": "jar",
+  "Bean Sausage": "cooking-pot",
+  "Warming Ginger": "flame",
+  "Snoozy Tomato": "orange-slice",
+  "Fancy Egg": "egg",
+  "Pure Oil": "drop",
+  "Soft Potato": "carrot",
+  "Fiery Herb": "pepper",
+  "Greengrass Corn": "grains",
+  "Soothing Cacao": "coffee-bean",
+  "Rousing Coffee": "coffee",
+  "Glossy Avocado": "avocado",
+  "Tasty Mushroom": "potted-plant",
+  "Large Leek": "plant",
+  "Plump Pumpkin": "acorn",
+  "Slowpoke Tail": "fish",
+};
+
+function IngredientIcon({name, size}) {
+  return <Icon name={INGREDIENT_ICON[name] || "bowl-food"} size={size || 20}
+    style={{color:name?"var(--accent-strong)":"var(--text-muted)"}}/>;
+}
+
+// Sprite-based picker for ingredient slots, same interaction pattern as BerryPicker -
+// shows an icon per option instead of relying on players knowing 19 game-specific
+// item names by text alone.
+function IngredientPicker({label, value, options, onChange, locked}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="field">
+      <label style={{display:"flex",alignItems:"center",gap:4}}>{label} {locked && <Icon name="lock" size={10}/>}</label>
+      <div onClick={()=>!locked && setOpen(o=>!o)}
+        style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",cursor:locked?"default":"pointer",
+          background:"var(--surface)",border:`1px solid ${open?"var(--accent)":"var(--border)"}`,
+          borderRadius:"var(--radius-control)",opacity:locked?0.6:1}}>
+        <IngredientIcon name={value} size={18}/>
+        <span style={{fontSize:12,color:value?"var(--text-primary)":"var(--text-muted)",overflow:"hidden",
+          textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{value || "— unknown —"}</span>
+        {!locked && <Icon name={open?"caret-up":"caret-down"} size={14} style={{marginLeft:"auto",color:"var(--text-muted)",flexShrink:0}}/>}
+      </div>
+      {open && !locked && (
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:6,marginTop:8,
+          padding:10,background:"var(--surface-alt)",borderRadius:10,border:"1px solid var(--border)"}}>
+          <div onClick={()=>{onChange(""); setOpen(false);}}
+            style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"7px 4px",
+              borderRadius:8,cursor:"pointer",background:!value?"var(--accent-soft)":"transparent",
+              border:`1px solid ${!value?"var(--accent)":"transparent"}`}}>
+            <IngredientIcon name={null} size={22}/>
+            <span style={{fontSize:9,color:"var(--text-secondary)"}}>—</span>
+          </div>
+          {options.map(ing => {
+            const selected = value === ing;
+            return (
+              <div key={ing} onClick={()=>{onChange(ing); setOpen(false);}}
+                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"7px 4px",
+                  borderRadius:8,cursor:"pointer",background:selected?"var(--accent-soft)":"transparent",
+                  border:`1px solid ${selected?"var(--accent)":"transparent"}`}}>
+                <IngredientIcon name={ing} size={22}/>
+                <span style={{fontSize:8,color:"var(--text-secondary)",textAlign:"center",lineHeight:1.2}}>{ing}</span>
               </div>
             );
           })}
@@ -1923,6 +2001,7 @@ function App() {
   const [compared, setCompared]     = useState([]);
   const [editTarget, setEditTarget] = useState(null);
   const [toast, setToast]           = useState("");
+  const [navOpen, setNavOpen]       = useState(false);
   const [theme, setTheme]           = useState(() => {
     const saved = localStorage.getItem("pks_theme");
     if (saved) return saved;
@@ -2145,12 +2224,12 @@ function App() {
   );
 
   return (
-    <div style={{minHeight:"100vh",background:"var(--bg)",paddingBottom:70}}>
+    <div style={{minHeight:"100vh",background:"var(--bg)"}}>
 
       {toast && <Toast msg={toast}/>}
 
       <div style={{background:"var(--surface)",borderBottom:"1px solid var(--border)",
-        padding:"14px 16px",position:"sticky",top:0,zIndex:10,
+        padding:"14px 16px",position:"sticky",top:0,zIndex:20,
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
           <div className="display" style={{display:"flex",alignItems:"center",gap:8,fontSize:19,fontWeight:700,color:"var(--text-primary)"}}>
@@ -2161,13 +2240,23 @@ function App() {
             PWA · OFFLINE READY · v{GAME.meta.version}
           </div>
         </div>
-        <button onClick={()=>setTheme(t => t === "dark" ? "light" : "dark")}
-          aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-          style={{background:"var(--surface-alt)",border:"1px solid var(--border)",borderRadius:"50%",
-            width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
-          <Icon name={theme === "dark" ? "sun" : "moon-stars"} size={17} style={{color:"var(--text-secondary)"}}/>
-        </button>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={()=>setTheme(t => t === "dark" ? "light" : "dark")}
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            style={{background:"var(--surface-alt)",border:"1px solid var(--border)",borderRadius:"50%",
+              width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Icon name={theme === "dark" ? "sun" : "moon-stars"} size={17} style={{color:"var(--text-secondary)"}}/>
+          </button>
+          <button className="hamburger-btn" onClick={()=>setNavOpen(o=>!o)}
+            aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen}
+            style={{background:"var(--surface-alt)",border:"1px solid var(--border)",borderRadius:"50%",
+              width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Icon name={navOpen ? "x" : "list"} size={18} style={{color:"var(--text-secondary)"}}/>
+          </button>
+        </div>
       </div>
+
+      {navOpen && <div className="app-nav-backdrop" onClick={()=>setNavOpen(false)}/>}
 
       <div className="app-content">
         {view === VIEWS.ADD && (
@@ -2202,10 +2291,10 @@ function App() {
         )}
       </div>
 
-      <div className="app-nav">
+      <div className={`app-nav${navOpen ? " app-nav-open" : ""}`}>
         {NAV.map(n => (
           <button key={n.id} data-active={view===n.id}
-            onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); }}
+            onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); setNavOpen(false); }}
             style={{background:"transparent",border:"none",
               color:view===n.id?"var(--accent)":"var(--text-muted)",
               display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
