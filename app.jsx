@@ -115,7 +115,62 @@ function Toast({msg}) {
   );
 }
 
-function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemoveFromRoster, onEdit, collapsible, role, defaultOpen}) {
+// Lets a roster card's ingredient rolls be corrected in place - no need to open the
+// full Add/Edit form - since the desktop grid is built to review/fix many members'
+// ingredients back-to-back while testing dish recommendations. Only rendered where
+// onUpdateIngredient is supplied (roster-backed views); read-only elsewhere (Compare/Team).
+function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
+  const level = parseInt(pokemon.level) || 0;
+  const base = [...new Set(speciesData.ingredient0.map(i=>i.ingredient))].join(", ");
+  const slots = [["30", 30, "ingredient30"], ["60", 60, "ingredient60"]];
+  return (
+    <div style={{marginTop:14}}>
+      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+        letterSpacing:"0.08em"}}>INGREDIENTS{onUpdateIngredient ? " (quick edit)" : ""}</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <div style={{flex:"1 1 100px"}}>
+          <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3}}>BASE</div>
+          <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
+            borderRadius:8,fontSize:11,color:"var(--text-secondary)"}}>{base}</div>
+        </div>
+        {slots.map(([key, slotLevel, gameKey]) => {
+          const locked = level < slotLevel;
+          const options = [...new Set(speciesData[gameKey].map(i=>i.ingredient))];
+          const value = pokemon.ingredients?.[key] || "";
+          if (!onUpdateIngredient) {
+            return (
+              <div key={key} style={{flex:"1 1 100px"}}>
+                <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3}}>
+                  LV.{slotLevel}{locked ? " (locked)" : ""}
+                </div>
+                <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
+                  borderRadius:8,fontSize:11,color:locked?"var(--text-muted)":"var(--text-secondary)"}}>
+                  {locked ? "—" : (value || "unknown")}
+                </div>
+              </div>
+            );
+          }
+          return (
+            <div key={key} style={{flex:"1 1 100px"}}>
+              <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3,
+                display:"flex",alignItems:"center",gap:4}}>
+                LV.{slotLevel} {locked && <Icon name="lock" size={9}/>}
+              </div>
+              <select value={value} disabled={locked}
+                onChange={e=>onUpdateIngredient(pokemon.id, key, e.target.value)}
+                style={{opacity:locked?0.5:1,fontSize:11,padding:"7px 8px"}}>
+                <option value="">— unknown —</option>
+                {options.map(ing => <option key={ing} value={ing}>{ing}</option>)}
+              </select>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemoveFromRoster, onEdit, onUpdateIngredient, collapsible, role, defaultOpen}) {
   const mods = natureMods(pokemon.nature);
   const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * mods.speed * 10) / 10;
   const subskillScore = scoreSubskills(pokemon.subskills, pokemon.level);
@@ -123,6 +178,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
   const score         = Math.round(totalScore(pokemon) * 10) / 10;
   const rankLabels = ["#1 RECOMMENDED","#2","#3","#4","#5"];
   const nat = GAME?.natures?.[pokemon.nature] || {};
+  const speciesData = GAME?.species?.[pokemon.species];
   const [open, setOpen] = useState(!collapsible || !!defaultOpen);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
@@ -230,6 +286,10 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
           ? <SubskillBadge key={lv} name={entry.name} locked={isSubskillLocked(pokemon.level, lv)} level={lv}/>
           : null;
       })}
+
+      {speciesData && (
+        <IngredientQuickEdit pokemon={pokemon} speciesData={speciesData} onUpdateIngredient={onUpdateIngredient}/>
+      )}
 
       <div style={{display:"flex",gap:8,marginTop:14}}>
         {onAddToRoster && !inRoster && (
@@ -750,7 +810,7 @@ const ROSTER_SORTS = {
   specialty:{ label: "Specialty",            cmp: (a,b) => (a.specialty||"").localeCompare(b.specialty||"") },
 };
 
-function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
+function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUpdateIngredient}) {
   const fileRef = useRef();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("score");
@@ -827,9 +887,12 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
               No Pokémon match "{search}"
             </div>
           ) : (
-            sorted.map(p => (
-              <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit} collapsible/>
-            ))
+            <div className="card-grid">
+              {sorted.map(p => (
+                <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit}
+                  onUpdateIngredient={onUpdateIngredient} collapsible/>
+              ))}
+            </div>
           )}
         </React.Fragment>
       )}
@@ -840,7 +903,7 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport}) {
 // ── Pokedex View ──────────────────────────────────────────────────────────────
 const POKEDEX_FILTERS = { OWNED: "owned", ALL: "all", MISSING: "missing" };
 
-function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster}) {
+function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, onUpdateIngredient}) {
   const [expanded, setExpanded] = useState(null);
   const [filter, setFilter] = useState(POKEDEX_FILTERS.ALL);
 
@@ -913,7 +976,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster}) {
         <div key={region} style={{marginBottom:18}}>
           <div style={{fontSize:11,fontWeight:700,color:"var(--text-secondary)",fontFamily:"monospace",
             letterSpacing:"0.08em",marginBottom:8}}>{region.toUpperCase()} · {byRegion[region].length}</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8}}>
+          <div className="dex-grid">
             {byRegion[region].map(sp => {
               const owned = bySpecies[sp];
               const isOwned = !!owned;
@@ -962,9 +1025,12 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster}) {
                           </button>
                         )}
                       </div>
-                      {[...owned].sort((a,b) => totalScore(b) - totalScore(a)).map(p => (
-                        <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit} collapsible/>
-                      ))}
+                      <div className="card-grid">
+                        {[...owned].sort((a,b) => totalScore(b) - totalScore(a)).map(p => (
+                          <PokemonCard key={p.id} pokemon={p} onRemoveFromRoster={onRemove} onEdit={onEdit}
+                            onUpdateIngredient={onUpdateIngredient} collapsible/>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </React.Fragment>
@@ -1763,6 +1829,15 @@ function App() {
     setRoster(prev => prev.filter(p => p.id !== id));
   }
 
+  // Patches just one pokemon's ingredient roll in place, from the roster card's
+  // quick-edit selects - avoids round-tripping through the full Add/Edit form when
+  // fixing many members' ingredients back-to-back.
+  function updateIngredient(id, slotKey, value) {
+    setRoster(prev => prev.map(p => p.id === id
+      ? {...p, ingredients: {...p.ingredients, [slotKey]: value}}
+      : p));
+  }
+
   function addToCompare(pokemon) {
     setCompared(prev => [...prev, pokemon]);
   }
@@ -1916,7 +1991,7 @@ function App() {
         </button>
       </div>
 
-      <div style={{padding:"20px 16px",maxWidth:480,margin:"0 auto"}}>
+      <div className="app-content">
         {view === VIEWS.ADD && (
           <AddView
             onSave={p => { saveToRoster(p); }}
@@ -1932,11 +2007,13 @@ function App() {
         )}
         {view === VIEWS.ROSTER && (
           <RosterView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
-            onGoAdd={()=>setView(VIEWS.ADD)} onExport={exportRoster} onImport={importRoster}/>
+            onGoAdd={()=>setView(VIEWS.ADD)} onExport={exportRoster} onImport={importRoster}
+            onUpdateIngredient={updateIngredient}/>
         )}
         {view === VIEWS.POKEDEX && (
           <PokedexView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
-            onGoAdd={()=>setView(VIEWS.ADD)} onCompareFromRoster={compareFromRoster}/>
+            onGoAdd={()=>setView(VIEWS.ADD)} onCompareFromRoster={compareFromRoster}
+            onUpdateIngredient={updateIngredient}/>
         )}
         {view === VIEWS.TEAM && (
           <TeamView roster={roster} onGoAdd={()=>setView(VIEWS.ADD)}/>
@@ -1947,13 +2024,12 @@ function App() {
         )}
       </div>
 
-      <div style={{position:"fixed",bottom:0,left:0,right:0,background:"var(--surface)",
-        borderTop:"1px solid var(--border)",display:"flex",zIndex:10}}>
+      <div className="app-nav">
         {NAV.map(n => (
-          <button key={n.id} onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); }}
-            style={{flex:1,padding:"12px 8px",background:"transparent",border:"none",
+          <button key={n.id} data-active={view===n.id}
+            onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); }}
+            style={{background:"transparent",border:"none",
               color:view===n.id?"var(--accent)":"var(--text-muted)",
-              borderTop:view===n.id?"2px solid var(--accent)":"2px solid transparent",
               display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
             <Icon name={n.icon} size={19}/>
             <span style={{fontSize:10,fontWeight:600,letterSpacing:"0.05em"}}>{n.label}</span>

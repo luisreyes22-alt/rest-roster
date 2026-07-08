@@ -84,6 +84,39 @@ button { cursor: pointer; font-family: inherit; }
   max-height: 200px; overflow-y: auto; margin-top: 4px; box-shadow: 0 4px 16px rgba(43,36,23,0.12); }
 .autocomplete-item { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
 .autocomplete-item:active { background: var(--surface-alt); }
+
+/* ── Responsive app shell ──────────────────────────────────────────────────
+   Mobile-first by default (single column, bottom tab bar, 480px content cap).
+   At >=900px ("desktop"), the nav becomes a fixed left sidebar and the content
+   area is freed to fill the viewport so multi-column card grids have room. */
+.app-content { max-width: 480px; margin: 0 auto; padding: 20px 16px 86px; }
+.app-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface);
+  border-top: 1px solid var(--border); display: flex; z-index: 10; }
+.app-nav button { flex: 1; padding: 12px 8px; border-top: 2px solid transparent; }
+.app-nav button[data-active="true"] { border-top: 2px solid var(--accent); }
+
+.card-grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
+.dex-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: start; }
+
+@media (min-width: 900px) {
+  body { --sidebar-width: 208px; }
+  .app-content { max-width: none; padding: 28px 32px 32px calc(var(--sidebar-width) + 32px); }
+  .app-nav { top: 0; bottom: 0; right: auto; width: var(--sidebar-width);
+    border-top: none; border-right: 1px solid var(--border); flex-direction: column;
+    padding-top: 76px; }
+  .app-nav button { flex: none; flex-direction: row !important; justify-content: flex-start;
+    gap: 10px !important; padding: 12px 20px; border-top: none !important;
+    border-left: 3px solid transparent; }
+  .app-nav button[data-active="true"] { border-left: 3px solid var(--accent); background: var(--accent-soft); }
+  .app-nav button span { font-size: 12px !important; }
+  .card-grid { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; }
+  .card-grid[data-span-open="true"] { grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); }
+  .dex-grid { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: 10px; }
+}
+
+@media (min-width: 1400px) {
+  .app-content { padding-right: 48px; }
+}
 </style>
 </head>
 <body>
