@@ -1,5 +1,5 @@
 // DrowsyCraft Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v15";
+const CACHE_NAME = "sleep-optimizer-v16";
 
 const ASSETS = [
   "./",
@@ -15,8 +15,8 @@ const ASSETS = [
   "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js",
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
-  "https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.44.0/tabler-icons.min.css"
+  "https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700&family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@600&display=swap",
+  "https://unpkg.com/@phosphor-icons/web@2.1.1/src/fill/style.css"
 ];
 
 // Install: pre-cache all assets

@@ -31,7 +31,7 @@ function regionFor(dexNo) {
 // ── Global game data (loaded async) ──────────────────────────────────────────
 let GAME = null;
 let SPRITE_IDS = null;
-const SPECIALTY_COLOR = { Berries:"var(--danger)", Ingredients:"var(--success)", Skills:"var(--info)", All:"var(--tier-s)" };
+const SPECIALTY_COLOR = { Berries:"var(--specialty-berries)", Ingredients:"var(--specialty-ingredients)", Skills:"var(--specialty-skills)", All:"var(--specialty-all)" };
 function spriteUrl(species, isShiny) {
   const id = SPRITE_IDS?.[species];
   if (!id) return null;
@@ -44,7 +44,7 @@ const makeId = n => `${n}_${Date.now()}_${++_idCounter}`;
 
 // ── UI atoms ──────────────────────────────────────────────────────────────────
 function Icon({name, size, style}) {
-  return <i className={`ti ti-${name}`} style={{fontSize:size||16,lineHeight:1,...style}} aria-hidden="true"/>;
+  return <i className={`ph-fill ph-${name}`} style={{fontSize:size||16,lineHeight:1,...style}} aria-hidden="true"/>;
 }
 
 function PokemonSprite({species, size, isShiny}) {
@@ -57,7 +57,7 @@ function PokemonSprite({species, size, isShiny}) {
         border:"1px solid var(--border)",display:"flex",alignItems:"center",justifyContent:"center",
         flexShrink:0,fontSize:s*0.4,fontWeight:700,color:"var(--text-muted)",position:"relative"}}>
         {species?.[0] || "?"}
-        {isShiny && <Icon name="sparkles" size={s*0.32} style={{position:"absolute",top:-2,right:-2,color:"var(--tier-s)"}}/>}
+        {isShiny && <Icon name="sparkle" size={s*0.32} style={{position:"absolute",top:-2,right:-2,color:"var(--tier-s)"}}/>}
       </div>
     );
   }
@@ -66,7 +66,7 @@ function PokemonSprite({species, size, isShiny}) {
       border:`1px solid ${isShiny?"var(--tier-s)":"var(--border)"}`,overflow:"hidden",flexShrink:0,position:"relative"}}>
       <img src={url} alt={species} loading="lazy" onError={()=>setBroken(true)}
         style={{width:"100%",height:"100%",objectFit:"contain"}}/>
-      {isShiny && <Icon name="sparkles" size={s*0.32} style={{position:"absolute",top:-2,right:-2,color:"var(--tier-s)",
+      {isShiny && <Icon name="sparkle" size={s*0.32} style={{position:"absolute",top:-2,right:-2,color:"var(--tier-s)",
         filter:"drop-shadow(0 0 2px var(--surface))"}}/>}
     </div>
   );
@@ -83,9 +83,9 @@ function SubskillBadge({name, locked, level}) {
       {locked
         ? <Icon name="lock" size={12} style={{color:"var(--text-muted)"}}/>
         : <span style={{fontSize:10,fontWeight:700,color:TIER_COLORS[tier],
-            fontFamily:"monospace",minWidth:14}}>{tier}</span>}
+            fontFamily:"'JetBrains Mono', monospace",minWidth:14}}>{tier}</span>}
       <span style={{fontSize:11,color:locked?"var(--text-muted)":"var(--text-primary)"}}>{name}</span>
-      <span style={{fontSize:9,color:"var(--text-secondary)",marginLeft:"auto",fontFamily:"monospace"}}>Lv.{level}</span>
+      <span style={{fontSize:9,color:"var(--text-secondary)",marginLeft:"auto",fontFamily:"'JetBrains Mono', monospace"}}>Lv.{level}</span>
     </div>
   );
 }
@@ -94,8 +94,8 @@ function RadarBar({label, value, max, color}) {
   return (
     <div style={{marginBottom:6}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>{label}</span>
-        <span style={{fontSize:10,color,fontFamily:"monospace",fontWeight:700}}>{value}</span>
+        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>{label}</span>
+        <span style={{fontSize:10,color,fontFamily:"'JetBrains Mono', monospace",fontWeight:700}}>{value}</span>
       </div>
       <div style={{height:4,background:"var(--surface-alt)",borderRadius:2}}>
         <div style={{height:"100%",width:`${Math.min(100,(value/max)*100)}%`,background:color,borderRadius:2}}/>
@@ -125,11 +125,11 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
   const slots = [["30", 30, "ingredient30"], ["60", 60, "ingredient60"]];
   return (
     <div style={{marginTop:14}}>
-      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
         letterSpacing:"0.08em"}}>INGREDIENTS{onUpdateIngredient ? " (quick edit)" : ""}</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
         <div style={{flex:"1 1 100px"}}>
-          <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3}}>BASE</div>
+          <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3}}>BASE</div>
           <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
             borderRadius:8,fontSize:11,color:"var(--text-secondary)"}}>{base}</div>
         </div>
@@ -140,7 +140,7 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
           if (!onUpdateIngredient) {
             return (
               <div key={key} style={{flex:"1 1 100px"}}>
-                <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3}}>
+                <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3}}>
                   LV.{slotLevel}{locked ? " (locked)" : ""}
                 </div>
                 <div style={{padding:"8px 10px",background:"var(--surface-alt)",border:"1px solid var(--border)",
@@ -152,7 +152,7 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
           }
           return (
             <div key={key} style={{flex:"1 1 100px"}}>
-              <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:3,
+              <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginBottom:3,
                 display:"flex",alignItems:"center",gap:4}}>
                 LV.{slotLevel} {locked && <Icon name="lock" size={9}/>}
               </div>
@@ -187,6 +187,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
       background:isWinner?"var(--accent-soft)":"var(--surface)",
       border:`${isWinner?2:1}px solid ${isWinner?"var(--accent)":"var(--border)"}`,
       borderRadius:"var(--radius-card)",padding:collapsible && !open ? "12px 16px" : 20,
+      boxShadow:"var(--shadow-card)",
       position:"relative",marginBottom:collapsible ? 10 : 20}}>
 
       {rank !== undefined && (
@@ -201,7 +202,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
           style={{position:"absolute",top:-10,right:16,zIndex:5,
           background:"var(--surface)",border:"1px solid var(--border-strong)",
           fontSize:10,fontWeight:600,padding:"3px 10px",borderRadius:20,
-          color:"var(--text-primary)",fontFamily:"monospace",display:"flex",alignItems:"center",gap:4,
+          color:"var(--text-primary)",fontFamily:"'JetBrains Mono', monospace",display:"flex",alignItems:"center",gap:4,
           cursor:pokemon.pickReason?"help":"default"}}>
           <Icon name={ROLE_ICONS[role]||"star"} size={11}/> {role}
         </div>
@@ -214,34 +215,34 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
         <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
           <PokemonSprite species={pokemon.species} size={collapsible && !open ? 36 : 44} isShiny={pokemon.isShiny}/>
           <div style={{minWidth:0}}>
-            <div style={{fontSize:collapsible && !open ? 15 : 20,fontWeight:600,color:"var(--text-primary)",
+            <div className="display" style={{fontSize:collapsible && !open ? 15 : 20,fontWeight:700,color:"var(--text-primary)",
               overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{pokemon.name}</div>
-            <div style={{fontSize:12,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+            <div style={{fontSize:12,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
               {pokemon.species} · Lv.{pokemon.level} ·{" "}
               <span style={{color:SPECIALTY_COLOR[pokemon.specialty]||"inherit"}}>{pokemon.specialty}</span>
             </div>
             {open && pokemon.berry && (
-              <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"var(--text-muted)",fontFamily:"monospace",marginTop:2}}>
-                <Icon name="cherry" size={11}/> {pokemon.berry} · {pokemon.mainSkill} {pokemon.mainSkillLevel ? `Lv.${pokemon.mainSkillLevel}` : ""}
+              <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",marginTop:2}}>
+                <Icon name="cherries" size={11}/> {pokemon.berry} · {pokemon.mainSkill} {pokemon.mainSkillLevel ? `Lv.${pokemon.mainSkillLevel}` : ""}
               </div>
             )}
           </div>
         </div>
         <div style={{textAlign:"right",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
           <div>
-            <div style={{fontSize:collapsible && !open ? 12 : 14,fontWeight:600,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+            <div style={{fontSize:collapsible && !open ? 12 : 14,fontWeight:600,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
               {score}
             </div>
-            <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace"}}>SCORE</div>
+            <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace"}}>SCORE</div>
           </div>
           <div>
-            <div style={{fontSize:collapsible && !open ? 15 : 20,fontWeight:600,color:"var(--accent)",fontFamily:"monospace"}}>
+            <div className="display" style={{fontSize:collapsible && !open ? 15 : 20,fontWeight:700,color:"var(--accent)"}}>
               {(pokemon.rp||0).toLocaleString()}
             </div>
-            <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>RP</div>
+            <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>RP</div>
           </div>
           {collapsible && (
-            <Icon name={open?"chevron-up":"chevron-down"} size={16} style={{color:"var(--text-muted)"}}/>
+            <Icon name={open?"caret-up":"caret-down"} size={16} style={{color:"var(--text-muted)"}}/>
           )}
         </div>
       </div>
@@ -257,7 +258,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
 
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"6px 10px",
         background:"var(--surface-alt)",borderRadius:8,flexWrap:"wrap"}}>
-        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>NATURE</span>
+        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>NATURE</span>
         <span style={{fontSize:12,color:"var(--text-primary)"}}>{pokemon.nature}</span>
         {nat.buff && (
           <span style={{display:"flex",alignItems:"center",gap:2,fontSize:10,color:"var(--success)",marginLeft:"auto"}}>
@@ -274,11 +275,11 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
 
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:14,
         padding:"6px 10px",background:"var(--surface-alt)",borderRadius:8}}>
-        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>FREQUENCY</span>
-        <span style={{fontSize:12,color:"var(--accent)",fontFamily:"monospace"}}>{pokemon.frequency}</span>
+        <span style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>FREQUENCY</span>
+        <span style={{fontSize:12,color:"var(--accent)",fontFamily:"'JetBrains Mono', monospace"}}>{pokemon.frequency}</span>
       </div>
 
-      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
         letterSpacing:"0.08em"}}>SUBSKILLS</div>
       {SLOT_LEVELS.map(lv => {
         const entry = pokemon.subskills?.[lv];
@@ -313,7 +314,7 @@ function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemove
             style={{flex:1,padding:"10px",background:"var(--info-bg)",
               border:"1px solid var(--info)",borderRadius:10,color:"var(--info)",
               fontSize:12,fontWeight:600,display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            <Icon name="edit" size={14}/> EDIT
+            <Icon name="pencil-simple" size={14}/> EDIT
           </button>
         )}
         {onRemoveFromRoster && (
@@ -354,7 +355,7 @@ function SpeciesInput({value, onSelect}) {
   return (
     <div style={{position:"relative"}}>
       <div style={{position:"relative"}}>
-        <Icon name="search" size={16} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)"}}/>
+        <Icon name="magnifying-glass" size={16} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"var(--text-muted)"}}/>
         <input value={text} placeholder="e.g. Latios" style={{paddingLeft:36}}
           onChange={e => { setText(e.target.value); setOpen(true); }}
           onFocus={() => setOpen(true)}/>
@@ -365,7 +366,7 @@ function SpeciesInput({value, onSelect}) {
             <div key={s} className="autocomplete-item"
               onClick={() => { onSelect(s); setText(s); setOpen(false); }}>
               <span style={{fontWeight:600}}>{s}</span>
-              <span style={{fontSize:10,color:"var(--text-secondary)",marginLeft:8,fontFamily:"monospace"}}>
+              <span style={{fontSize:10,color:"var(--text-secondary)",marginLeft:8,fontFamily:"'JetBrains Mono', monospace"}}>
                 {GAME.species[s].specialty} · {GAME.species[s].berry}
               </span>
             </div>
@@ -509,7 +510,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
     <div>
       {toast && <Toast msg={toast}/>}
       <div style={{textAlign:"center",padding:"14px 0 18px"}}>
-        <div style={{fontSize:20,fontWeight:600,marginBottom:4}}>
+        <div className="display" style={{fontSize:20,fontWeight:600,marginBottom:4}}>
           {isEdit ? "Edit Pokémon" : "Add Pokémon"}
         </div>
         <div style={{fontSize:12,color:"var(--text-secondary)"}}>
@@ -520,7 +521,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
       {!isEdit && sessionCount > 0 && (
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,
           padding:"8px 12px",background:"var(--success-bg)",border:"1px solid var(--success)",
-          borderRadius:8,marginBottom:16,fontSize:12,color:"var(--success)",fontFamily:"monospace"}}>
+          borderRadius:8,marginBottom:16,fontSize:12,color:"var(--success)",fontFamily:"'JetBrains Mono', monospace"}}>
           <span style={{display:"flex",alignItems:"center",gap:5}}>
             <Icon name="check" size={13}/> {sessionCount} saved this session
           </span>
@@ -529,7 +530,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
               style={{background:"transparent",border:"1px solid var(--success)",borderRadius:14,
                 padding:"3px 10px",color:"var(--success)",fontSize:11,fontWeight:600,
                 display:"flex",alignItems:"center",gap:4}}>
-              <Icon name="arrow-back-up" size={12}/> UNDO LAST
+              <Icon name="arrow-u-up-left" size={12}/> UNDO LAST
             </button>
           )}
         </div>
@@ -551,14 +552,14 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
         {speciesData && (
           <div style={{marginTop:6,padding:"8px 10px",background:"var(--success-bg)",
             border:"1px solid var(--success)",borderRadius:8,fontSize:11,
-            color:"var(--success)",fontFamily:"monospace"}}>
+            color:"var(--success)",fontFamily:"'JetBrains Mono', monospace"}}>
             <div style={{display:"flex",alignItems:"center",gap:4}}>
-              <Icon name="check" size={12}/> {speciesData.specialty} · <Icon name="cherry" size={12}/> {speciesData.berry}
+              <Icon name="check" size={12}/> {speciesData.specialty} · <Icon name="cherries" size={12}/> {speciesData.berry}
             </div>
             {speciesData.ingredientPercent != null && (
               <div style={{marginTop:4,color:"var(--text-secondary)",display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                <span style={{display:"flex",alignItems:"center",gap:3}}><Icon name="soup" size={12}/> ing {speciesData.ingredientPercent}%</span>
-                <span style={{display:"flex",alignItems:"center",gap:3}}><Icon name="bolt" size={12}/> skill {speciesData.skillPercent}%</span>
+                <span style={{display:"flex",alignItems:"center",gap:3}}><Icon name="bowl-food" size={12}/> ing {speciesData.ingredientPercent}%</span>
+                <span style={{display:"flex",alignItems:"center",gap:3}}><Icon name="lightning" size={12}/> skill {speciesData.skillPercent}%</span>
                 {speciesData.baseFrequency ? <span style={{display:"flex",alignItems:"center",gap:3}}><Icon name="clock" size={12}/> base {Math.floor(speciesData.baseFrequency/60)}m {speciesData.baseFrequency%60}s</span> : ""}
               </div>
             )}
@@ -573,7 +574,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
           <option value="">— select —</option>
           {GAME && Object.keys(GAME.mainSkills).sort().map(s => <option key={s} value={s}>{s}</option>)}
         </select>
-        <div style={{marginTop:6,fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+        <div style={{marginTop:6,fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
           Auto-filled when you pick a species — change it only if it doesn't match what you see in-game
         </div>
       </div>
@@ -589,7 +590,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
             </option>;
           })}
         </select>
-        <div style={{marginTop:6,fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",lineHeight:1.5}}>
+        <div style={{marginTop:6,fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",lineHeight:1.5}}>
           Increases with Main Skill Seeds or automatically on evolution
         </div>
       </div>
@@ -617,7 +618,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
             textTransform:"none",fontFamily:"inherit",fontSize:13,color:"var(--text-primary)"}}>
           <input type="checkbox" checked={form.isShiny} onChange={e=>set("isShiny", e.target.checked)}
             style={{width:16,height:16,flexShrink:0}}/>
-          <Icon name="sparkles" size={15} style={{color:form.isShiny?"var(--tier-s)":"var(--text-muted)"}}/>
+          <Icon name="sparkle" size={15} style={{color:form.isShiny?"var(--tier-s)":"var(--text-muted)"}}/>
           Is shiny
         </label>
       </div>
@@ -649,7 +650,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
             onChange={e=>set("freqSecs", e.target.value)}/>
         </div>
       </div>
-      <div style={{margin:"-6px 0 10px",fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+      <div style={{margin:"-6px 0 10px",fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
         Auto-filled with the species base — adjust it if your Pokémon differs
       </div>
 
@@ -661,18 +662,18 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
           {GAME && Object.keys(GAME.natures).map(n => <option key={n} value={n}>{n}</option>)}
         </select>
         {natureData && (natureData.buff || natureData.nerf) && (
-          <div style={{marginTop:6,display:"flex",gap:12,fontSize:11,fontFamily:"monospace"}}>
+          <div style={{marginTop:6,display:"flex",gap:12,fontSize:11,fontFamily:"'JetBrains Mono', monospace"}}>
             {natureData.buff && <span style={{display:"flex",alignItems:"center",gap:3,color:"var(--success)"}}><Icon name="arrow-up" size={12}/> {natureData.buff}</span>}
             {natureData.nerf && <span style={{display:"flex",alignItems:"center",gap:3,color:"var(--danger)"}}><Icon name="arrow-down" size={12}/> {natureData.nerf}</span>}
           </div>
         )}
         {natureData && !natureData.buff && !natureData.nerf && (
-          <div style={{marginTop:6,fontSize:11,color:"var(--text-muted)",fontFamily:"monospace"}}>neutral nature</div>
+          <div style={{marginTop:6,fontSize:11,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace"}}>neutral nature</div>
         )}
       </div>
 
       {/* Subskills */}
-      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",margin:"6px 0 8px",
+      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",margin:"6px 0 8px",
         letterSpacing:"0.08em"}}>SUBSKILLS (Lv.10 and Lv.25 required)</div>
       <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
         <SubSelect slotKey="sub10" slotLevel={10}/>
@@ -687,7 +688,7 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
           Team Builder, so leaving these empty is safe, just less precise. */}
       {speciesData && (
         <React.Fragment>
-          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",margin:"14px 0 8px",
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",margin:"14px 0 8px",
             letterSpacing:"0.08em"}}>INGREDIENTS (optional — sharpens dish matching)</div>
           <div style={{display:"flex",gap:10}}>
             <div className="field" style={{flex:1}}>
@@ -723,22 +724,23 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
               background:valid?"var(--accent-soft)":"var(--surface-alt)",
               color:valid?"var(--accent-strong)":"var(--text-muted)",
               display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-            <Icon name="swords" size={15}/> COMPARE
+            <Icon name="sword" size={15}/> COMPARE
           </button>
         )}
         <button onClick={handleSave} disabled={!valid}
-          style={{flex:1,padding:13,border:"none",borderRadius:"var(--radius-control)",fontSize:13,fontWeight:600,
+          style={{flex:1,padding:13,border:"none",borderRadius:"var(--radius-pill)",fontSize:13,fontWeight:700,
             background:valid?"var(--accent)":"var(--surface-alt)",
             color:valid?"var(--on-accent)":"var(--text-muted)",
+            boxShadow:valid?"var(--shadow-card-hover)":"none",
             display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-          <Icon name={isEdit ? "device-floppy" : "clipboard-list"} size={15}/>
+          <Icon name={isEdit ? "floppy-disk" : "clipboard-text"} size={15}/>
           {isEdit ? "SAVE CHANGES" : "SAVE TO ROSTER"}
         </button>
       </div>
       {!valid && missing.length > 0 && (
-        <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",
+        <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",
           display:"flex",alignItems:"center",gap:5}}>
-          <Icon name="info-circle" size={13}/> Missing: {missing.join(", ")}
+          <Icon name="info" size={13}/> Missing: {missing.join(", ")}
         </div>
       )}
       {isEdit && (
@@ -756,8 +758,8 @@ function AddView({onSave, onCompareAdd, onUndo, editTarget, onDoneEdit}) {
 function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
   if (compared.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
-      <Icon name="swords" size={40} style={{color:"var(--text-muted)",marginBottom:16}}/>
-      <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>Nothing to compare yet</div>
+      <Icon name="sword" size={40} style={{color:"var(--text-muted)",marginBottom:16}}/>
+      <div className="display" style={{fontSize:18,fontWeight:600,marginBottom:8}}>Nothing to compare yet</div>
       <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
         Add Pokémon with "Compare" from the form
       </div>
@@ -777,12 +779,12 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
         borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:20,
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:2}}>RECOMMENDATION</div>
+          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:2}}>RECOMMENDATION</div>
           <div style={{fontSize:16,fontWeight:600,color:"var(--accent-strong)"}}>Invest in {sorted[0]?.name}</div>
         </div>
         <button onClick={onClear}
           style={{background:"var(--danger-bg)",border:"1px solid var(--danger)",
-            borderRadius:8,padding:"6px 12px",fontSize:11,color:"var(--danger)",fontFamily:"monospace"}}>
+            borderRadius:8,padding:"6px 12px",fontSize:11,color:"var(--danger)",fontFamily:"'JetBrains Mono', monospace"}}>
           CLEAR
         </button>
       </div>
@@ -791,7 +793,7 @@ function CompareView({compared, onAddToRoster, rosterIds, onClear, onGoAdd}) {
           onAddToRoster={onAddToRoster} inRoster={rosterIds.has(p.id)}/>
       ))}
       <div style={{padding:12,background:"var(--surface-alt)",borderRadius:8,
-        fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",lineHeight:1.6}}>
+        fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",lineHeight:1.6}}>
         * Score = unlocked subskills (weighted by slot) ×2 + helps/hour + main-skill power, the last two adjusted by nature · Data v{GAME?.meta?.version}
       </div>
     </div>
@@ -826,8 +828,8 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUp
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div>
-          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>YOUR ROSTER</div>
-          <div style={{fontSize:18,fontWeight:600}}>{roster.length} Pokémon</div>
+          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>YOUR ROSTER</div>
+          <div className="display" style={{fontSize:18,fontWeight:600}}>{roster.length} Pokémon</div>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={onExport}
@@ -858,7 +860,7 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUp
         <div style={{textAlign:"center",padding:"50px 20px"}}>
           <img src="./icon-header.png" alt="" width={48} height={48}
             style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
-          <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your roster is empty</div>
+          <div className="display" style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your roster is empty</div>
           <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
             Add your first Pokémon to get started
           </div>
@@ -873,7 +875,7 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUp
         <React.Fragment>
           <div style={{display:"flex",gap:8,marginBottom:14}}>
             <div style={{flex:1,position:"relative"}}>
-              <Icon name="search" size={14} style={{position:"absolute",left:11,top:12,color:"var(--text-muted)"}}/>
+              <Icon name="magnifying-glass" size={14} style={{position:"absolute",left:11,top:12,color:"var(--text-muted)"}}/>
               <input value={search} onChange={e=>setSearch(e.target.value)}
                 placeholder="Search by name or species"
                 style={{paddingLeft:32}}/>
@@ -915,7 +917,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
     <div style={{textAlign:"center",padding:"50px 20px"}}>
       <img src="./icon-header.png" alt="" width={48} height={48}
         style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
-      <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your Pokédex is empty</div>
+      <div className="display" style={{fontSize:18,fontWeight:600,marginBottom:8}}>Your Pokédex is empty</div>
       <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
         Every species you own will show up here
       </div>
@@ -952,8 +954,8 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
   return (
     <div>
       <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>YOUR POKÉDEX</div>
-        <div style={{fontSize:18,fontWeight:600}}>{ownedCount}/{allSpecies.length} species · {roster.length} Pokémon</div>
+        <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>YOUR POKÉDEX</div>
+        <div className="display" style={{fontSize:18,fontWeight:600}}>{ownedCount}/{allSpecies.length} species · {roster.length} Pokémon</div>
       </div>
 
       <div style={{display:"flex",gap:6,marginBottom:16}}>
@@ -974,7 +976,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
         </div>
       ) : regionOrder.map(region => (
         <div key={region} style={{marginBottom:18}}>
-          <div style={{fontSize:11,fontWeight:700,color:"var(--text-secondary)",fontFamily:"monospace",
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",
             letterSpacing:"0.08em",marginBottom:8}}>{region.toUpperCase()} · {byRegion[region].length}</div>
           <div className="dex-grid">
             {byRegion[region].map(sp => {
@@ -992,7 +994,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
                       display:"flex",flexDirection:"column",alignItems:"center",gap:6,position:"relative"}}>
                     {isOwned && owned.length > 1 && (
                       <div style={{position:"absolute",top:-7,right:-4,background:"var(--accent)",
-                        color:"var(--on-accent)",fontSize:10,fontWeight:700,fontFamily:"monospace",
+                        color:"var(--on-accent)",fontSize:10,fontWeight:700,fontFamily:"'JetBrains Mono', monospace",
                         padding:"2px 7px",borderRadius:20}}>x{owned.length}</div>
                     )}
                     <div style={{filter:isOwned?"none":"grayscale(1)"}}>
@@ -1002,7 +1004,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
                       <div style={{fontSize:11,fontWeight:600,color:"var(--text-primary)",
                         overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sp}</div>
                       {dexNo && (
-                        <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"monospace"}}>
+                        <div style={{fontSize:9,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace"}}>
                           #{String(dexNo).padStart(3,"0")}
                         </div>
                       )}
@@ -1012,7 +1014,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
                     <div style={{gridColumn:"1 / -1"}}>
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                         margin:"4px 0 8px"}}>
-                        <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",
+                        <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",
                           letterSpacing:"0.05em"}}>
                           YOUR {sp.toUpperCase()} ({owned.length})
                         </div>
@@ -1021,7 +1023,7 @@ function PokedexView({roster, onRemove, onEdit, onGoAdd, onCompareFromRoster, on
                             style={{padding:"5px 10px",background:"var(--accent-soft)",
                               border:"1px solid var(--accent)",borderRadius:14,color:"var(--accent-strong)",
                               fontSize:10,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
-                            <Icon name="swords" size={11}/> COMPARE THESE {owned.length}
+                            <Icon name="sword" size={11}/> COMPARE THESE {owned.length}
                           </button>
                         )}
                       </div>
@@ -1051,8 +1053,8 @@ const DISH_TYPE_TO_KEY = { "Curries & Stews": "curry", "Salads": "salad", "Desse
 // node --test. Nothing UI-specific stayed behind - see formulas.js for the logic and
 // its "Greengrass Isle Expert Mode" sourcing note.
 
-const ROLE_ICONS = { "Ingredients (dish)":"soup", "Ingredients":"soup", "Skills / Utility":"bolt",
-  "Berries (island)":"cherry", "Berries (main favorite)":"cherry", "Berries (sub favorite)":"cherry",
+const ROLE_ICONS = { "Ingredients (dish)":"bowl-food", "Ingredients":"bowl-food", "Skills / Utility":"lightning",
+  "Berries (island)":"cherries", "Berries (main favorite)":"cherries", "Berries (sub favorite)":"cherries",
   "Best available":"star" };
 
 const EMPTY_EXPERT = { mainBerry: "", subBerry1: "", subBerry2: "", randomBonus: "ingredient" };
@@ -1066,7 +1068,7 @@ function berryIconUrl(name) {
 function BerryIcon({name, size}) {
   const [broken, setBroken] = useState(false);
   const s = size || 20;
-  if (!name || broken) return <Icon name="cherry" size={s} style={{color:"var(--text-muted)"}}/>;
+  if (!name || broken) return <Icon name="cherries" size={s} style={{color:"var(--text-muted)"}}/>;
   return <img src={berryIconUrl(name)} width={s} height={s} alt="" onError={()=>setBroken(true)}
     style={{objectFit:"contain"}}/>;
 }
@@ -1084,7 +1086,7 @@ function BerryPicker({label, value, onChange, disabledNames}) {
           borderRadius:"var(--radius-control)"}}>
         <BerryIcon name={value} size={20}/>
         <span style={{fontSize:13,color:value?"var(--text-primary)":"var(--text-muted)"}}>{value || "— select —"}</span>
-        <Icon name={open?"chevron-up":"chevron-down"} size={14} style={{marginLeft:"auto",color:"var(--text-muted)"}}/>
+        <Icon name={open?"caret-up":"caret-down"} size={14} style={{marginLeft:"auto",color:"var(--text-muted)"}}/>
       </div>
       {open && (
         <div style={{display:"grid",gridTemplateColumns:"repeat(4, 1fr)",gap:6,marginTop:8,
@@ -1099,7 +1101,7 @@ function BerryPicker({label, value, onChange, disabledNames}) {
                   background:selected?"var(--accent-soft)":"transparent",
                   border:`1px solid ${selected?"var(--accent)":"transparent"}`}}>
                 <BerryIcon name={b.name} size={28}/>
-                <span style={{fontSize:9,color:"var(--text-secondary)",fontFamily:"monospace"}}>{b.name}</span>
+                <span style={{fontSize:9,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>{b.name}</span>
               </div>
             );
           })}
@@ -1119,22 +1121,22 @@ function TopDishTeam({recipe, roster, island, expertSettings}) {
         <div style={{minWidth:0}}>
           <div style={{fontSize:13,fontWeight:600,color:"var(--text-primary)",overflow:"hidden",
             textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{recipe.name}</div>
-          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
             Value {recipe.value} · +{recipe.bonusPercent}% bonus
           </div>
         </div>
-        <Icon name={open?"chevron-up":"chevron-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>
+        <Icon name={open?"caret-up":"caret-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>
       </div>
       {open && result && (
         <div style={{padding:"10px 12px"}}>
-          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10}}>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10}}>
             Needs: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
           </div>
           {result.missingIngredients.length > 0 && (
             <div style={{marginBottom:10,padding:"8px 10px",background:"var(--tier-s-bg)",
               border:"1px solid var(--tier-s)",borderRadius:8,fontSize:11,color:"var(--tier-s)",
-              fontFamily:"monospace",display:"flex",alignItems:"flex-start",gap:5}}>
-              <Icon name="alert-triangle" size={13} style={{marginTop:2,flexShrink:0}}/>
+              fontFamily:"'JetBrains Mono', monospace",display:"flex",alignItems:"flex-start",gap:5}}>
+              <Icon name="warning" size={13} style={{marginTop:2,flexShrink:0}}/>
               No team member produces: {result.missingIngredients.join(", ")}
             </div>
           )}
@@ -1152,7 +1154,7 @@ function TopDishesGallery({roster, island, expertSettings}) {
   const top = GAME.recipes.filter(r => r.type === mealType).sort((a,b)=>b.value-a.value).slice(0,5);
   return (
     <div style={{marginBottom:20}}>
-      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
         letterSpacing:"0.05em"}}>TOP DISHES · TAP ONE TO SEE ITS RECOMMENDED TEAM</div>
       <div style={{display:"flex",gap:6,marginBottom:10}}>
         {Object.entries(DISH_TYPE_TO_KEY).map(([label, key]) => (
@@ -1183,8 +1185,8 @@ function TeamView({roster, onGoAdd}) {
 
   if (roster.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
-      <Icon name="beach" size={40} style={{color:"var(--text-muted)",marginBottom:16}}/>
-      <div style={{fontSize:18,fontWeight:600,marginBottom:8}}>You need Pokémon in your roster</div>
+      <Icon name="island" size={40} style={{color:"var(--text-muted)",marginBottom:16}}/>
+      <div className="display" style={{fontSize:18,fontWeight:600,marginBottom:8}}>You need Pokémon in your roster</div>
       <div style={{fontSize:13,color:"var(--text-secondary)",marginBottom:24}}>
         The Team Builder builds teams from your saved roster
       </div>
@@ -1200,7 +1202,7 @@ function TeamView({roster, onGoAdd}) {
   return (
     <div>
       <div style={{textAlign:"center",padding:"14px 0 18px"}}>
-        <div style={{fontSize:20,fontWeight:600,marginBottom:4}}>Team Builder</div>
+        <div className="display" style={{fontSize:20,fontWeight:600,marginBottom:4}}>Team Builder</div>
         <div style={{fontSize:12,color:"var(--text-secondary)"}}>Optimal team for the week from your roster</div>
       </div>
 
@@ -1215,8 +1217,8 @@ function TeamView({roster, onGoAdd}) {
         {island && !isExpertIsland && (
           <div style={{marginTop:6,padding:"8px 10px",background:"var(--info-bg)",
             border:"1px solid var(--info)",borderRadius:8,fontSize:11,
-            color:"var(--info)",fontFamily:"monospace",display:"flex",alignItems:"center",gap:5}}>
-            <Icon name="cherry" size={12}/>
+            color:"var(--info)",fontFamily:"'JetBrains Mono', monospace",display:"flex",alignItems:"center",gap:5}}>
+            <Icon name="cherries" size={12}/>
             {GAME.islands[island].berries.includes("all")
               ? "Accepts all berries"
               : "Berries: " + GAME.islands[island].berries.join(", ")}
@@ -1227,7 +1229,7 @@ function TeamView({roster, onGoAdd}) {
       {isExpertIsland && (
         <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
           borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:14}}>
-          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
             letterSpacing:"0.05em"}}>THIS WEEK'S SETTINGS (from the in-game island screen)</div>
 
           <BerryPicker label="Main favorite berry *" value={expert.mainBerry}
@@ -1253,7 +1255,7 @@ function TeamView({roster, onGoAdd}) {
               <option value="skill">Skills — favored-berry skill chance boosted</option>
             </select>
           </div>
-          <div style={{marginTop:10,fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",lineHeight:1.6}}>
+          <div style={{marginTop:10,fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",lineHeight:1.6}}>
             Main favorite: 10% faster help + skill level +1. Sub favorites: normal speed. Neither: 15% slower.
           </div>
         </div>
@@ -1279,8 +1281,8 @@ function TeamView({roster, onGoAdd}) {
         {recipe && (
           <div style={{marginTop:6,padding:"8px 10px",background:"var(--tier-s-bg)",
             border:"1px solid var(--tier-s)",borderRadius:8,fontSize:11,
-            color:"var(--tier-s)",fontFamily:"monospace",display:"flex",alignItems:"center",gap:5}}>
-            <Icon name="soup" size={12}/> Needs: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
+            color:"var(--tier-s)",fontFamily:"'JetBrains Mono', monospace",display:"flex",alignItems:"center",gap:5}}>
+            <Icon name="bowl-food" size={12}/> Needs: {recipe.ingredients.map(i => `${i.ingredient} x${i.amount}`).join(", ")}
           </div>
         )}
       </div>
@@ -1288,10 +1290,11 @@ function TeamView({roster, onGoAdd}) {
       <button onClick={()=>setResult(buildTeam(roster, island, recipeName,
           isExpertIsland ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus } : null))}
         disabled={!island || !expertReady}
-        style={{width:"100%",padding:14,border:"none",borderRadius:"var(--radius-control)",fontSize:14,fontWeight:600,
+        style={{width:"100%",padding:14,border:"none",borderRadius:"var(--radius-pill)",fontSize:14,fontWeight:700,
           letterSpacing:"0.05em",marginBottom:20,
           background:(island && expertReady)?"var(--accent)":"var(--surface-alt)",
           color:(island && expertReady)?"var(--on-accent)":"var(--text-muted)",
+          boxShadow:(island && expertReady)?"var(--shadow-card-hover)":"none",
           display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
         <Icon name="hammer" size={16}/> BUILD OPTIMAL TEAM
       </button>
@@ -1301,21 +1304,21 @@ function TeamView({roster, onGoAdd}) {
           {/* Summary */}
           <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
             borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:16}}>
-            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:6}}>TEAM BALANCE</div>
-            <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:12,fontFamily:"monospace"}}>
-              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--danger)"}}><Icon name="cherry" size={13}/> {result.specialties["Berries"]||0} Berries</span>
-              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--success)"}}><Icon name="soup" size={13}/> {result.specialties["Ingredients"]||0} Ingredients</span>
-              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--info)"}}><Icon name="bolt" size={13}/> {result.specialties["Skills"]||0} Skills</span>
+            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:6}}>TEAM BALANCE</div>
+            <div style={{display:"flex",gap:14,flexWrap:"wrap",fontSize:12,fontFamily:"'JetBrains Mono', monospace"}}>
+              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--danger)"}}><Icon name="cherries" size={13}/> {result.specialties["Berries"]||0} Berries</span>
+              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--success)"}}><Icon name="bowl-food" size={13}/> {result.specialties["Ingredients"]||0} Ingredients</span>
+              <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--info)"}}><Icon name="lightning" size={13}/> {result.specialties["Skills"]||0} Skills</span>
               {result.isExpert ? (
                 <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}>
-                  <Icon name="beach" size={13}/> {result.mainMatches} main / {result.subMatches} sub favorite
+                  <Icon name="island" size={13}/> {result.mainMatches} main / {result.subMatches} sub favorite
                 </span>
               ) : (
-                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="beach" size={13}/> {result.matches}/5 berry match</span>
+                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="island" size={13}/> {result.matches}/5 berry match</span>
               )}
             </div>
             {result.isExpert && (
-              <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>
+              <div style={{marginTop:8,fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
                 This week's bonus: <span style={{color:"var(--accent)"}}>{EXPERT_BONUS_LABELS[result.expertSettings.randomBonus]}</span>
               </div>
             )}
@@ -1326,15 +1329,15 @@ function TeamView({roster, onGoAdd}) {
             <div style={{background:"var(--tier-s-bg)",border:"1px solid var(--tier-s)",
               borderRadius:"var(--radius-control)",padding:"12px 14px",marginBottom:16}}>
               {result.warnings.map((w,i) => (
-                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:11,color:"var(--tier-s)",lineHeight:1.7,fontFamily:"monospace"}}>
-                  <Icon name="alert-triangle" size={13} style={{marginTop:2,flexShrink:0}}/> {w}
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:11,color:"var(--tier-s)",lineHeight:1.7,fontFamily:"'JetBrains Mono', monospace"}}>
+                  <Icon name="warning" size={13} style={{marginTop:2,flexShrink:0}}/> {w}
                 </div>
               ))}
             </div>
           )}
 
           {/* Team members - collapsed so all 5 fit on one screen; tap to expand details */}
-          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:8,
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
             letterSpacing:"0.05em"}}>YOUR TEAM · TAP TO SEE DETAILS</div>
           {result.team.map((p,i) => (
             <div key={p.id} style={{position:"relative"}}>
@@ -1399,7 +1402,7 @@ function BoardBar({label, value, max, color}) {
     <div style={{marginBottom:8}}>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
         <span style={{fontSize:11,color:"var(--text-secondary)"}}>{label}</span>
-        <span style={{fontSize:11,color,fontFamily:"monospace",fontWeight:700}}>{value}</span>
+        <span style={{fontSize:11,color,fontFamily:"'JetBrains Mono', monospace",fontWeight:700}}>{value}</span>
       </div>
       <div style={{height:8,background:"var(--surface-alt)",borderRadius:4}}>
         <div style={{height:"100%",width:`${max>0?Math.min(100,(value/max)*100):0}%`,background:color,borderRadius:4}}/>
@@ -1423,7 +1426,7 @@ function WeekEntryForm({board, onAdd}) {
   return (
     <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
       borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:20}}>
-      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
         letterSpacing:"0.05em"}}>LOG THIS WEEK'S RESULT</div>
       <div className="field">
         <label>Week / date range *</label>
@@ -1480,7 +1483,7 @@ function WeekEntryForm({board, onAdd}) {
         style={{width:"100%",padding:12,border:"none",borderRadius:"var(--radius-control)",fontSize:13,fontWeight:600,
           background:valid?"var(--accent)":"var(--surface)",color:valid?"var(--on-accent)":"var(--text-muted)",
           display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-        <Icon name="trophy" size={15}/> LOG WEEK
+        <Icon name="medal" size={15}/> LOG WEEK
       </button>
     </div>
   );
@@ -1498,7 +1501,7 @@ function ShinyLogForm({board, onAdd}) {
   return (
     <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
       borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:16}}>
-      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+      <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
         letterSpacing:"0.05em"}}>LOG A SHINY</div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
         {board.players.map(p => (
@@ -1525,7 +1528,7 @@ function ShinyLogForm({board, onAdd}) {
         style={{width:"100%",padding:11,border:"none",borderRadius:"var(--radius-control)",fontSize:12,fontWeight:600,
           background:valid?"var(--tier-s)":"var(--surface)",color:valid?"var(--on-accent)":"var(--text-muted)",
           display:"flex",alignItems:"center",justifyContent:"center",gap:6}}>
-        <Icon name="sparkles" size={14}/> ADD TO SHINY LOG
+        <Icon name="sparkle" size={14}/> ADD TO SHINY LOG
       </button>
     </div>
   );
@@ -1540,17 +1543,17 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
   const recentWeeks = [...board.weeks].reverse();
 
   const TABS = [
-    { key: "standings", label: "Standings", icon: "trophy" },
+    { key: "standings", label: "Standings", icon: "medal" },
     { key: "history",   label: "History",   icon: "list" },
-    { key: "shiny",     label: "Shiny Log", icon: "sparkles" },
+    { key: "shiny",     label: "Shiny Log", icon: "sparkle" },
   ];
 
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
         <div>
-          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>WEEKLY RESULTS BOARD</div>
-          <div style={{fontSize:18,fontWeight:600}}>{board.weeks.length} weeks logged</div>
+          <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>WEEKLY RESULTS BOARD</div>
+          <div className="display" style={{fontSize:18,fontWeight:600}}>{board.weeks.length} weeks logged</div>
         </div>
         <div style={{display:"flex",gap:8}}>
           <button onClick={onExport}
@@ -1594,14 +1597,14 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
 
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",
             borderRadius:"var(--radius-card)",padding:16,marginBottom:16}}>
-            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
               letterSpacing:"0.05em"}}>STANDINGS</div>
             {standings.map((s,i) => (
               <div key={s.player} style={{marginBottom:10}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
-                  {i===0 && s.points>0 && <Icon name="trophy" size={13} style={{color:"var(--tier-s)"}}/>}
+                  {i===0 && s.points>0 && <Icon name="medal" size={13} style={{color:"var(--tier-s)"}}/>}
                   <span style={{fontSize:13,fontWeight:600,color:"var(--text-primary)"}}>{s.player}</span>
-                  <span style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginLeft:"auto"}}>
+                  <span style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginLeft:"auto"}}>
                     {s.points} pts · {s.wins} wins
                   </span>
                 </div>
@@ -1618,7 +1621,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
 
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",
             borderRadius:"var(--radius-card)",padding:16,marginBottom:16}}>
-            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
               letterSpacing:"0.05em"}}>STREAKS</div>
             {board.players.map(p => {
               const {current, best} = computeStreaks(board, p);
@@ -1626,7 +1629,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
                 <div key={p} style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
                   <span style={{fontSize:12,color:"var(--text-primary)"}}>{p}</span>
-                  <span style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",display:"flex",alignItems:"center",gap:10}}>
                     {current > 0 && <span style={{color:"var(--danger)",display:"flex",alignItems:"center",gap:3}}><Icon name="flame" size={12}/> {current} current</span>}
                     <span>best {best}</span>
                   </span>
@@ -1637,7 +1640,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
 
           <div style={{background:"var(--surface)",border:"1px solid var(--border)",
             borderRadius:"var(--radius-card)",padding:16,marginBottom:16}}>
-            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+            <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
               letterSpacing:"0.05em"}}>WINS BY ISLAND</div>
             {board.players.map(p => {
               const islandWins = computeIslandWins(board, p);
@@ -1659,7 +1662,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
           {Object.keys(dishCounts).length > 0 && (
             <div style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:"var(--radius-card)",padding:16,marginBottom:16}}>
-              <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+              <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
                 letterSpacing:"0.05em"}}>DISH TYPE COUNTS</div>
               {Object.entries(dishCounts).map(([dish,count]) => (
                 <BoardBar key={dish} label={dish} value={count} max={Math.max(...Object.values(dishCounts))} color="var(--success)"/>
@@ -1670,13 +1673,13 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
           {board.weeks.some(w=>w.winnerRP) && (
             <div style={{background:"var(--surface)",border:"1px solid var(--border)",
               borderRadius:"var(--radius-card)",padding:16}}>
-              <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace",marginBottom:10,
+              <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
                 letterSpacing:"0.05em"}}>RP RECORDS</div>
               {[...board.weeks].filter(w=>w.winnerRP).sort((a,b)=>b.winnerRP-a.winnerRP).slice(0,5).map(w => (
                 <div key={w.id} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",
                   borderBottom:"1px solid var(--border)"}}>
                   <span style={{color:"var(--text-primary)"}}>{w.winners.join(" & ")} · {w.dateLabel}</span>
-                  <span style={{color:"var(--accent)",fontFamily:"monospace",fontWeight:600}}>{w.winnerRP.toLocaleString()} RP</span>
+                  <span style={{color:"var(--accent)",fontFamily:"'JetBrains Mono', monospace",fontWeight:600}}>{w.winnerRP.toLocaleString()} RP</span>
                 </div>
               ))}
             </div>
@@ -1696,7 +1699,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
                 <div>
                   <div style={{fontSize:14,fontWeight:600,color:"var(--text-primary)"}}>{w.dateLabel}</div>
-                  <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"monospace"}}>{w.island}</div>
+                  <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>{w.island}</div>
                 </div>
                 <button onClick={()=>onRemoveWeek(w.id)}
                   style={{background:"var(--danger-bg)",border:"1px solid var(--danger)",borderRadius:8,
@@ -1705,7 +1708,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
                 </button>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--tier-s)",marginBottom:4}}>
-                <Icon name="trophy" size={13}/> {w.winners.join(w.winners.length>1 ? " & " : "")}
+                <Icon name="medal" size={13}/> {w.winners.join(w.winners.length>1 ? " & " : "")}
               </div>
               <div style={{fontSize:11,color:"var(--text-secondary)",display:"flex",gap:10,flexWrap:"wrap"}}>
                 {w.dishType && <span>{w.dishType}</span>}
@@ -1729,9 +1732,9 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
                 borderRadius:"var(--radius-card)",padding:"14px 16px",marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                   <span style={{fontSize:14,fontWeight:600,color:"var(--text-primary)"}}>{p}</span>
-                  <span style={{fontSize:12,color:"var(--tier-s)",fontFamily:"monospace",fontWeight:700,
+                  <span style={{fontSize:12,color:"var(--tier-s)",fontFamily:"'JetBrains Mono', monospace",fontWeight:700,
                     display:"flex",alignItems:"center",gap:4}}>
-                    <Icon name="sparkles" size={13}/> {entries.length + baseCount} total
+                    <Icon name="sparkle" size={13}/> {entries.length + baseCount} total
                     {baseCount > 0 && <span style={{color:"var(--text-muted)",fontWeight:400}}>({baseCount} pre-log)</span>}
                   </span>
                 </div>
@@ -1742,7 +1745,7 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
                     borderBottom:"1px solid var(--border)"}}>
                     <PokemonSprite species={s.species} size={26} isShiny/>
                     <span style={{fontSize:12,color:"var(--text-primary)",flex:1}}>{s.species}</span>
-                    {s.date && <span style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace"}}>{s.date}</span>}
+                    {s.date && <span style={{fontSize:10,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace"}}>{s.date}</span>}
                   </div>
                 ))}
               </div>
@@ -1810,7 +1813,7 @@ function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("pks_theme", theme);
     const meta = document.getElementById("theme-color-meta");
-    if (meta) meta.setAttribute("content", theme === "dark" ? "#10180C" : "#F1F8E9");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#1B1730" : "#FFF8ED");
   }, [theme]);
 
   function showToast(m) { setToast(m); setTimeout(()=>setToast(""), 2200); }
@@ -1943,16 +1946,16 @@ function App() {
 
   const NAV = [
     { id: VIEWS.ADD,     label: "Add",      icon: "plus" },
-    { id: VIEWS.COMPARE, label: "Compare",  icon: "swords" },
-    { id: VIEWS.ROSTER,  label: "Roster",   icon: "clipboard-list" },
-    { id: VIEWS.POKEDEX, label: "Pokedex",  icon: "pokeball" },
-    { id: VIEWS.TEAM,    label: "Team",     icon: "beach" },
-    { id: VIEWS.BOARD,   label: "Board",    icon: "trophy" },
+    { id: VIEWS.COMPARE, label: "Compare",  icon: "sword" },
+    { id: VIEWS.ROSTER,  label: "Roster",   icon: "clipboard-text" },
+    { id: VIEWS.POKEDEX, label: "Pokedex",  icon: "circle-half" },
+    { id: VIEWS.TEAM,    label: "Team",     icon: "island" },
+    { id: VIEWS.BOARD,   label: "Board",    icon: "medal" },
   ];
 
   if (gameError) return (
     <div style={{padding:40,textAlign:"center"}}>
-      <Icon name="alert-triangle" size={40} style={{color:"var(--danger)",marginBottom:16}}/>
+      <Icon name="warning" size={40} style={{color:"var(--danger)",marginBottom:16}}/>
       <div style={{fontSize:16,fontWeight:600}}>Error loading game data</div>
       <div style={{fontSize:13,color:"var(--text-secondary)",marginTop:8}}>Make sure gameData.json is in the same folder</div>
     </div>
@@ -1962,7 +1965,7 @@ function App() {
     <div style={{padding:60,textAlign:"center"}}>
       <img src="./icon-header.png" alt="" width={48} height={48}
         style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
-      <div style={{fontSize:14,color:"var(--text-secondary)",fontFamily:"monospace"}}>Loading game data...</div>
+      <div style={{fontSize:14,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>Loading game data...</div>
     </div>
   );
 
@@ -1975,11 +1978,11 @@ function App() {
         padding:"14px 16px",position:"sticky",top:0,zIndex:10,
         display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div>
-          <div style={{display:"flex",alignItems:"center",gap:8,fontSize:17,fontWeight:600,color:"var(--text-primary)"}}>
-            <img src="./icon-header.png" alt="" width={22} height={22}
-              style={{borderRadius:"50%",border:"1px solid var(--border)"}}/> DROWSYCRAFT
+          <div className="display" style={{display:"flex",alignItems:"center",gap:8,fontSize:19,fontWeight:700,color:"var(--text-primary)"}}>
+            <img src="./icon-header.png" alt="" width={24} height={24}
+              style={{borderRadius:"50%",border:"1px solid var(--border)"}}/> DrowsyCraft
           </div>
-          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"monospace",letterSpacing:"0.1em"}}>
+          <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",letterSpacing:"0.1em"}}>
             PWA · OFFLINE READY · v{GAME.meta.version}
           </div>
         </div>
