@@ -33,17 +33,45 @@ decisions change instead of letting it rot._
   any owned copy is shiny.
 - Estimate: one short session.
 
-### 2. Team Builder fairness: skill-specialist pick considers ingredients
-Observed: Sango (Ampharos) lands in almost every team — the "Skills /
-Utility" slot picks purely by score, so the same top skill mon monopolizes.
-- When a dish is selected, the skill-specialist slot should weigh that
-  candidate's ingredient coverage of the recipe (level-gated individual
-  pool) as a tiebreak/bonus, so a slightly lower-scored skill mon that
-  actually feeds the dish can win the slot.
-- Also worth adding while in there: a small "why this over the runner-up"
-  hint in the role tag tooltip, so picks stay explainable.
-- Estimate: half a session, mostly in `buildTeam()`'s pick logic + tests
-  once the test foundation exists.
+### 2. Team Builder v2: multi-axis scoring + best-achievable-dish (agreed 2026-07-08)
+The earlier "+4 tiebreak" fix didn't dethrone Sango because it isn't a tie:
+Sango's raw totalScore (52.1) leads the #2 skill specialist by 8.7 points,
+driven by Charge Strength M Lv.7's curve (7.79, steepest in the game data,
+worth 15.6 pts vs Ingredient Magnet S Lv.7's 8.0) — the formula scores skill
+*growth curves*, not skill *function*, and the reserved "Skills / Utility"
+slot hands the seat to the top scorer unconditionally.
+
+Redesign (decisions confirmed with Luis):
+- **Four axes per candidate**: Dish (estimated needed-ingredients/HOUR for
+  the target recipe: helps/hr × ingredient% × matching level-gated slots —
+  production rate, not binary can/can't), Cooking-support skills (main
+  skills classified by FUNCTION: magnet/draw/pot-size/tasty-chance/assist =
+  cooking; E4E/cheer/charge-energy = sustain; Extra Helpful/Helper Boost =
+  helper; Charge Strength/Berry Burst = strength; shards/metronome/etc =
+  neutral — curve value × function weight), Berry (island match × berry
+  output), Meta (species tier from RaenonX's community tier list, kept as a
+  small local meta-tiers.json snapshot refreshed manually — no backend).
+- **Fixed dish-first weights**: Dish > cooking-support > berry > meta.
+  Meta is a light tiebreak between otherwise-similar picks, per Luis.
+- **No reserved slots**: greedy pick of 5 with MARGINAL dish value — each
+  pick decrements expected coverage of the recipe's remaining ingredient
+  demand, so redundant stackers lose value and coverage wins. Any specialty
+  can fill any seat (a Berries mon that feeds the dish beats an Ingredients
+  mon that doesn't). Roles become descriptive labels of each pick's
+  dominant axis; pickReason keeps the numbers for auditability.
+- **Best-achievable-dish mode**: evaluate every recipe as (recipe value ×
+  roster's real expected coverage), recommend the best dish+team combos
+  instead of making Luis guess which dish to select.
+- Sango note: he still earns herb-dish seats honestly (Ingredient Finder M,
+  fast helps, Fiery Herb×2 rolls) — the fix removes his *guaranteed* seat,
+  it doesn't ban him.
+- Tests to freeze: monopoly regression (pure-strength mon with zero dish
+  contribution can't beat a dish contributor under dish-first weights),
+  coverage-beats-redundancy, marginal decay, best-dish sanity.
+- Sync chore: formulas.cjs edits must be copied to formulas.js +
+  public/formulas.js (see header comment in formulas.cjs).
+- Estimate: 1-2 sessions (axes+greedy first, then best-dish, then meta
+  tiers seeding).
 
 ### 3. Berry icons in Expert Mode pickers
 Users don't know berries by name. Native `<select>` can't render images, so

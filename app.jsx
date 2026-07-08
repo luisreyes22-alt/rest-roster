@@ -8,7 +8,7 @@ const TIER_BG = { S:"var(--tier-s-bg)", A:"var(--tier-a-bg)", B:"var(--tier-b-bg
 // build step. This app only wires them to GAME/UI; never redefine them here.
 const { TIER_SCORES, SLOT_WEIGHTS, SLOT_LEVELS, getTier, isSubskillLocked, scoreSubskills,
   freqToSecs, scoreMainSkill, natureMods, totalScore, individualIngredientPool,
-  expertBerryTier, buildTeam, EXPERT_BONUS_LABELS } = window.Formulas;
+  expertBerryTier, buildTeam, bestAchievableDish, EXPERT_BONUS_LABELS } = window.Formulas;
 const VIEWS = { ADD:"add", COMPARE:"compare", ROSTER:"roster", POKEDEX:"pokedex", TEAM:"team", BOARD:"board" };
 
 // Region boundaries by National Pokédex number. Regional forms (Alolan/Paldean/etc.) keep
@@ -1211,7 +1211,7 @@ const DISH_TYPE_TO_KEY = { "Curries & Stews": "curry", "Salads": "salad", "Desse
 // node --test. Nothing UI-specific stayed behind - see formulas.js for the logic and
 // its "Greengrass Isle Expert Mode" sourcing note.
 
-const ROLE_ICONS = { "Ingredients (dish)":"bowl-food", "Ingredients":"bowl-food", "Skills / Utility":"lightning",
+const ROLE_ICONS = { "Dish engine":"bowl-food", "Ingredients":"bowl-food", "Cooking support":"lightning",
   "Berries (island)":"cherries", "Berries (main favorite)":"cherries", "Berries (sub favorite)":"cherries",
   "Best available":"star" };
 
@@ -1414,9 +1414,14 @@ function TeamView({roster, onGoAdd}) {
   const [recipeName, setRecipeName] = useState("");
   const [expert, setExpert] = useState(EMPTY_EXPERT);
   const [result, setResult] = useState(null);
+  const [bestDishes, setBestDishes] = useState(null);
+  const [expandedBest, setExpandedBest] = useState(null);
   const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
   const isExpertIsland = island && GAME.islands[island].expert;
   const expertReady = !isExpertIsland || (expert.mainBerry && expert.subBerry1 && expert.subBerry2);
+  const expertConfig = isExpertIsland
+    ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus }
+    : null;
 
   if (roster.length === 0) return (
     <div style={{textAlign:"center",padding:"60px 20px"}}>
@@ -1497,8 +1502,53 @@ function TeamView({roster, onGoAdd}) {
       )}
 
       {island && expertReady && (
-        <TopDishesGallery roster={roster} island={island}
-          expertSettings={isExpertIsland ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus } : null}/>
+        <div style={{marginBottom:20}}>
+          <button onClick={()=>{ setBestDishes(bestAchievableDish(roster, island, expertConfig).slice(0,3)); setExpandedBest(null); }}
+            style={{width:"100%",padding:12,background:"var(--accent-soft)",border:"1px solid var(--accent)",
+              borderRadius:"var(--radius-pill)",color:"var(--accent-strong)",fontSize:13,fontWeight:700,
+              display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            <Icon name="sparkle" size={15}/> FIND MY BEST ACHIEVABLE DISH
+          </button>
+          {bestDishes && (
+            <div style={{marginTop:10}}>
+              <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
+                letterSpacing:"0.05em"}}>RANKED BY RECIPE VALUE × YOUR ROSTER'S REAL PRODUCTION</div>
+              {bestDishes.map((bd, i) => (
+                <div key={bd.recipe.name} style={{border:"1px solid var(--border)",borderRadius:10,marginBottom:8,overflow:"hidden"}}>
+                  <div onClick={()=>setExpandedBest(expandedBest === i ? null : i)}
+                    style={{padding:"10px 12px",display:"flex",justifyContent:"space-between",alignItems:"center",
+                      cursor:"pointer",background:i===0?"var(--accent-soft)":"var(--surface-alt)"}}>
+                    <div style={{minWidth:0}}>
+                      <div style={{fontSize:13,fontWeight:600,color:"var(--text-primary)",overflow:"hidden",
+                        textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i+1}. {bd.recipe.name}</div>
+                      <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
+                        ~{bd.achievable.toLocaleString()} achievable · {bd.result.coveragePct}% of {bd.fullValue.toLocaleString()}
+                      </div>
+                    </div>
+                    <Icon name={expandedBest===i?"caret-up":"caret-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>
+                  </div>
+                  {expandedBest === i && (
+                    <div style={{padding:"10px 12px"}}>
+                      {bd.result.warnings.map((w,j) => (
+                        <div key={j} style={{display:"flex",alignItems:"flex-start",gap:5,fontSize:11,color:"var(--tier-s)",
+                          lineHeight:1.6,fontFamily:"'JetBrains Mono', monospace",marginBottom:4}}>
+                          <Icon name="warning" size={12} style={{marginTop:2,flexShrink:0}}/> {w}
+                        </div>
+                      ))}
+                      {bd.result.team.map(p => (
+                        <PokemonCard key={p.id} pokemon={p} role={p.role} collapsible/>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {island && expertReady && (
+        <TopDishesGallery roster={roster} island={island} expertSettings={expertConfig}/>
       )}
 
       <div className="field">
@@ -1522,8 +1572,7 @@ function TeamView({roster, onGoAdd}) {
         )}
       </div>
 
-      <button onClick={()=>setResult(buildTeam(roster, island, recipeName,
-          isExpertIsland ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus } : null))}
+      <button onClick={()=>setResult(buildTeam(roster, island, recipeName, expertConfig))}
         disabled={!island || !expertReady}
         style={{width:"100%",padding:14,border:"none",borderRadius:"var(--radius-pill)",fontSize:14,fontWeight:700,
           letterSpacing:"0.05em",marginBottom:20,
@@ -1550,6 +1599,11 @@ function TeamView({roster, onGoAdd}) {
                 </span>
               ) : (
                 <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="island" size={13}/> {result.matches}/5 berry match</span>
+              )}
+              {result.coveragePct != null && (
+                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--accent-strong)"}}>
+                  <Icon name="bowl-food" size={13}/> ~{result.coveragePct}% dish coverage
+                </span>
               )}
             </div>
             {result.isExpert && (
