@@ -812,10 +812,154 @@ const ROSTER_SORTS = {
   specialty:{ label: "Specialty",            cmp: (a,b) => (a.specialty||"").localeCompare(b.specialty||"") },
 };
 
-function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUpdateIngredient}) {
+// Fields that get re-entered/corrected after initial import and commonly go stale:
+// level, nature, the two required subskill slots, and the level-gated ingredient
+// rolls (only "missing" once the pokemon is actually old enough to have rolled them).
+// Drives both the Bulk Edit table's red-cell highlighting and its default
+// "missing anything" filter.
+function pokemonMissingFields(p) {
+  const missing = [];
+  const level = parseInt(p.level) || 0;
+  if (!level) missing.push("level");
+  if (!p.nature) missing.push("nature");
+  if (!p.subskills?.[10]?.name) missing.push("sub10");
+  if (!p.subskills?.[25]?.name) missing.push("sub25");
+  if (level >= 30 && !p.ingredients?.["30"]) missing.push("ing30");
+  if (level >= 60 && !p.ingredients?.["60"]) missing.push("ing60");
+  return missing;
+}
+
+const BULK_EDIT_COLUMNS = ["Pokémon","Level","Nature","Sub Lv.10","Sub Lv.25","Ing Lv.30","Ing Lv.60"];
+
+function BulkEditRow({pokemon, onUpdateField}) {
+  const speciesData = GAME?.species?.[pokemon.species];
+  const missing = pokemonMissingFields(pokemon);
+  const level = parseInt(pokemon.level) || 0;
+  const subskillNames = GAME ? Object.keys(GAME.subskills) : [];
+  const cell = field => ({padding:"6px 10px",borderBottom:"1px solid var(--border)",
+    background: field && missing.includes(field) ? "var(--danger-bg)" : "transparent"});
+  const selectStyle = {fontSize:12,padding:"6px 8px"};
+
+  return (
+    <tr>
+      <td style={{...cell(), minWidth:170}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <PokemonSprite species={pokemon.species} size={26} isShiny={pokemon.isShiny}/>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:12,fontWeight:700,color:"var(--text-primary)",whiteSpace:"nowrap",
+              overflow:"hidden",textOverflow:"ellipsis",maxWidth:130}}>{pokemon.name}</div>
+            <div style={{fontSize:10,color:"var(--text-muted)"}}>{pokemon.species}</div>
+          </div>
+        </div>
+      </td>
+      <td style={{...cell("level"),width:64}}>
+        <input type="number" inputMode="numeric" value={pokemon.level||""} style={{...selectStyle,width:"100%"}}
+          onChange={e=>onUpdateField(pokemon.id,"level",e.target.value)}/>
+      </td>
+      <td style={{...cell("nature"),width:112}}>
+        <select value={pokemon.nature||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"nature",e.target.value)}>
+          <option value="">—</option>
+          {GAME && Object.keys(GAME.natures).map(n => <option key={n} value={n}>{n}</option>)}
+        </select>
+      </td>
+      <td style={{...cell("sub10"),width:150}}>
+        <select value={pokemon.subskills?.[10]?.name||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"sub10",e.target.value)}>
+          <option value="">—</option>
+          {subskillNames.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </td>
+      <td style={{...cell("sub25"),width:150}}>
+        <select value={pokemon.subskills?.[25]?.name||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"sub25",e.target.value)}>
+          <option value="">—</option>
+          {subskillNames.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+      </td>
+      <td style={{...cell("ing30"),width:130}}>
+        {speciesData && level >= 30 ? (
+          <select value={pokemon.ingredients?.["30"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing30",e.target.value)}>
+            <option value="">—</option>
+            {[...new Set(speciesData.ingredient30.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
+          </select>
+        ) : <Icon name="lock" size={12} style={{color:"var(--text-muted)"}}/>}
+      </td>
+      <td style={{...cell("ing60"),width:130}}>
+        {speciesData && level >= 60 ? (
+          <select value={pokemon.ingredients?.["60"]||""} style={selectStyle} onChange={e=>onUpdateField(pokemon.id,"ing60",e.target.value)}>
+            <option value="">—</option>
+            {[...new Set(speciesData.ingredient60.map(i=>i.ingredient))].map(ing => <option key={ing} value={ing}>{ing}</option>)}
+          </select>
+        ) : <Icon name="lock" size={12} style={{color:"var(--text-muted)"}}/>}
+      </td>
+    </tr>
+  );
+}
+
+// Spreadsheet-style bulk editor: every row stays inline-editable with no expand/collapse,
+// so correcting many Pokémon (missing ingredients after a mass import, a leveling pass,
+// etc.) is a straight tab-through instead of open-card -> edit -> collapse -> repeat.
+function BulkEditTable({roster, onUpdateField}) {
+  const [search, setSearch] = useState("");
+  const [missingOnly, setMissingOnly] = useState(true);
+
+  const q = search.trim().toLowerCase();
+  const rows = roster
+    .filter(p => !q || p.name.toLowerCase().includes(q) || p.species.toLowerCase().includes(q))
+    .filter(p => !missingOnly || pokemonMissingFields(p).length > 0)
+    .sort((a,b) => pokemonMissingFields(b).length - pokemonMissingFields(a).length || a.name.localeCompare(b.name));
+
+  return (
+    <div>
+      <div style={{display:"flex",gap:10,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{flex:"1 1 200px",position:"relative"}}>
+          <Icon name="magnifying-glass" size={14} style={{position:"absolute",left:11,top:12,color:"var(--text-muted)"}}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)}
+            placeholder="Search by name or species" style={{paddingLeft:32}}/>
+        </div>
+        <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,color:"var(--text-secondary)",
+          cursor:"pointer",whiteSpace:"nowrap",textTransform:"none",fontWeight:400}}>
+          <input type="checkbox" checked={missingOnly} onChange={e=>setMissingOnly(e.target.checked)}
+            style={{width:16,height:16,flexShrink:0}}/>
+          Missing anything only
+        </label>
+      </div>
+
+      <div style={{fontSize:12,color:"var(--text-secondary)",marginBottom:10}}>
+        {rows.length} {missingOnly ? "need attention" : "shown"}
+      </div>
+
+      {rows.length === 0 ? (
+        <div style={{textAlign:"center",padding:"40px 20px",color:"var(--text-secondary)",fontSize:13}}>
+          {missingOnly
+            ? "Nothing missing — every Pokémon has level, nature, subskills, and ingredients filled in."
+            : `No Pokémon match "${search}"`}
+        </div>
+      ) : (
+        <div style={{overflowX:"auto",border:"1px solid var(--border)",borderRadius:"var(--radius-card)"}}>
+          <table style={{borderCollapse:"collapse",width:"100%",minWidth:840}}>
+            <thead>
+              <tr style={{background:"var(--surface-alt)"}}>
+                {BULK_EDIT_COLUMNS.map(h => (
+                  <th key={h} style={{position:"sticky",top:0,background:"var(--surface-alt)",textAlign:"left",
+                    padding:"10px 10px",fontSize:10,color:"var(--text-secondary)",fontWeight:700,
+                    letterSpacing:"0.05em",textTransform:"uppercase",borderBottom:"1px solid var(--border)"}}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(p => <BulkEditRow key={p.id} pokemon={p} onUpdateField={onUpdateField}/>)}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUpdateIngredient, onUpdateField}) {
   const fileRef = useRef();
   const [search, setSearch] = useState("");
   const [sortKey, setSortKey] = useState("score");
+  const [mode, setMode] = useState("cards");
 
   const filtered = roster.filter(p => {
     if (!search.trim()) return true;
@@ -831,7 +975,18 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUp
           <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>YOUR ROSTER</div>
           <div className="display" style={{fontSize:18,fontWeight:600}}>{roster.length} Pokémon</div>
         </div>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <div style={{display:"flex",border:"1px solid var(--border)",borderRadius:16,overflow:"hidden"}}>
+            {["cards","bulk"].map(m => (
+              <button key={m} onClick={()=>setMode(m)}
+                style={{padding:"8px 12px",border:"none",
+                  background:mode===m?"var(--accent-soft)":"transparent",
+                  color:mode===m?"var(--accent-strong)":"var(--text-secondary)",
+                  fontSize:11,fontWeight:600,display:"flex",alignItems:"center",gap:5}}>
+                <Icon name={m==="cards"?"squares-four":"table"} size={13}/> {m==="cards"?"CARDS":"BULK EDIT"}
+              </button>
+            ))}
+          </div>
           <button onClick={onExport}
             style={{padding:"8px 12px",background:"var(--info-bg)",
               border:"1px solid var(--info)",borderRadius:16,color:"var(--info)",
@@ -856,7 +1011,9 @@ function RosterView({roster, onRemove, onEdit, onGoAdd, onExport, onImport, onUp
         </div>
       </div>
 
-      {roster.length === 0 ? (
+      {roster.length > 0 && mode === "bulk" ? (
+        <BulkEditTable roster={roster} onUpdateField={onUpdateField}/>
+      ) : roster.length === 0 ? (
         <div style={{textAlign:"center",padding:"50px 20px"}}>
           <img src="./icon-header.png" alt="" width={48} height={48}
             style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
@@ -1841,6 +1998,24 @@ function App() {
       : p));
   }
 
+  // Backing function for the Bulk Edit table - one cell edit patches one pokemon's
+  // one field, so 150+ roster members can be corrected row-by-row without ever
+  // leaving the table (no per-Pokémon form navigation).
+  function updateRosterField(id, field, value) {
+    setRoster(prev => prev.map(p => {
+      if (p.id !== id) return p;
+      switch (field) {
+        case "level": return {...p, level: parseInt(value) || 0};
+        case "nature": return {...p, nature: value};
+        case "sub10": return {...p, subskills: {...p.subskills, 10: value ? {name: value} : undefined}};
+        case "sub25": return {...p, subskills: {...p.subskills, 25: value ? {name: value} : undefined}};
+        case "ing30": return {...p, ingredients: {...p.ingredients, "30": value}};
+        case "ing60": return {...p, ingredients: {...p.ingredients, "60": value}};
+        default: return p;
+      }
+    }));
+  }
+
   function addToCompare(pokemon) {
     setCompared(prev => [...prev, pokemon]);
   }
@@ -2011,7 +2186,7 @@ function App() {
         {view === VIEWS.ROSTER && (
           <RosterView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
             onGoAdd={()=>setView(VIEWS.ADD)} onExport={exportRoster} onImport={importRoster}
-            onUpdateIngredient={updateIngredient}/>
+            onUpdateIngredient={updateIngredient} onUpdateField={updateRosterField}/>
         )}
         {view === VIEWS.POKEDEX && (
           <PokedexView roster={roster} onRemove={removeFromRoster} onEdit={startEdit}
