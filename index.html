@@ -109,6 +109,11 @@ button { cursor: pointer; font-family: 'Nunito', sans-serif; }
 .autocomplete-item { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); color: var(--text-primary); }
 .autocomplete-item:active { background: var(--surface-alt); }
 
+.splash-screen { opacity: 1; transition: opacity 0.28s ease, transform 0.28s ease; }
+.splash-screen.splash-fade-out { opacity: 0; transform: scale(0.97); pointer-events: none; }
+.splash-tap-hint { animation: splash-pulse 1.6s ease-in-out infinite; }
+@keyframes splash-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
 /* ── Responsive app shell ──────────────────────────────────────────────────
    Mobile-first by default (single column, bottom tab bar, 480px content cap).
    At >=900px ("desktop"), the nav becomes a fixed left sidebar and the content

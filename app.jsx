@@ -2050,6 +2050,8 @@ function BoardView({board, onAddWeek, onRemoveWeek, onAddShiny, onExport, onImpo
 function App() {
   const [gameLoaded, setGameLoaded] = useState(false);
   const [gameError, setGameError]   = useState(false);
+  const [splashDismissed, setSplashDismissed] = useState(false);
+  const [splashFading, setSplashFading]       = useState(false);
   const [, forceRerender]           = useState(0);
   const [view, setView]             = useState(VIEWS.ADD);
   const [compared, setCompared]     = useState([]);
@@ -2268,15 +2270,32 @@ function App() {
     </div>
   );
 
-  if (!gameLoaded) return (
-    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",
-      justifyContent:"center",gap:20,padding:"40px 24px",background:"var(--bg)",textAlign:"center"}}>
+  if (!splashDismissed) return (
+    <div className={`splash-screen${splashFading ? " splash-fade-out" : ""}`}
+      onClick={() => {
+        if (!gameLoaded || splashFading) return;
+        setSplashFading(true);
+        setTimeout(() => setSplashDismissed(true), 280);
+      }}
+      style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",
+        justifyContent:"center",gap:18,padding:"40px 24px",background:"var(--bg)",textAlign:"center",
+        cursor:gameLoaded?"pointer":"default"}}>
       <img src="./splash.jpg" alt="" style={{width:"min(280px, 70vw)",borderRadius:"var(--radius-card)",
         boxShadow:"var(--shadow-card-hover)"}}/>
       <div className="display" style={{fontSize:26,fontWeight:700,color:"var(--text-primary)"}}>DrowsyCraft</div>
-      <div style={{fontSize:13,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",letterSpacing:"0.06em"}}>
-        Loading game data...
+      <div style={{fontSize:15,color:"var(--text-secondary)",maxWidth:280}}>
+        Shhh&hellip; the whole crew's out cold. 😴
       </div>
+      {gameLoaded ? (
+        <div className="splash-tap-hint" style={{fontSize:12,color:"var(--accent-strong)",
+          fontFamily:"'JetBrains Mono', monospace",letterSpacing:"0.08em",fontWeight:700,marginTop:8}}>
+          TAP ANYWHERE TO WAKE THE ROSTER UP ⚡
+        </div>
+      ) : (
+        <div style={{fontSize:13,color:"var(--text-muted)",fontFamily:"'JetBrains Mono', monospace",letterSpacing:"0.06em"}}>
+          Loading game data...
+        </div>
+      )}
     </div>
   );
 
