@@ -1,5 +1,5 @@
 // DrowsyCraft Service Worker — offline-first cache strategy
-const CACHE_NAME = "sleep-optimizer-v21";
+const CACHE_NAME = "sleep-optimizer-v22";
 
 const ASSETS = [
   "./",
@@ -15,6 +15,7 @@ const ASSETS = [
   "./apple-touch-icon.png",
   "./favicon-32.png",
   "./favicon-16.png",
+  "./splash.jpg",
   "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js",

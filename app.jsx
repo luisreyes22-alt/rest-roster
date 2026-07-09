@@ -2055,7 +2055,6 @@ function App() {
   const [compared, setCompared]     = useState([]);
   const [editTarget, setEditTarget] = useState(null);
   const [toast, setToast]           = useState("");
-  const [navOpen, setNavOpen]       = useState(false);
   const [theme, setTheme]           = useState(() => {
     const saved = localStorage.getItem("pks_theme");
     if (saved) return saved;
@@ -2270,10 +2269,14 @@ function App() {
   );
 
   if (!gameLoaded) return (
-    <div style={{padding:60,textAlign:"center"}}>
-      <img src="./icon-header.png" alt="" width={48} height={48}
-        style={{borderRadius:"50%",border:"1px solid var(--border)",marginBottom:16}}/>
-      <div style={{fontSize:14,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>Loading game data...</div>
+    <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",
+      justifyContent:"center",gap:20,padding:"40px 24px",background:"var(--bg)",textAlign:"center"}}>
+      <img src="./splash.jpg" alt="" style={{width:"min(280px, 70vw)",borderRadius:"var(--radius-card)",
+        boxShadow:"var(--shadow-card-hover)"}}/>
+      <div className="display" style={{fontSize:26,fontWeight:700,color:"var(--text-primary)"}}>DrowsyCraft</div>
+      <div style={{fontSize:13,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",letterSpacing:"0.06em"}}>
+        Loading game data...
+      </div>
     </div>
   );
 
@@ -2301,16 +2304,8 @@ function App() {
               width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
             <Icon name={theme === "dark" ? "sun" : "moon-stars"} size={17} style={{color:"var(--text-secondary)"}}/>
           </button>
-          <button className="hamburger-btn" onClick={()=>setNavOpen(o=>!o)}
-            aria-label={navOpen ? "Close menu" : "Open menu"} aria-expanded={navOpen}
-            style={{background:"var(--surface-alt)",border:"1px solid var(--border)",borderRadius:"50%",
-              width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <Icon name={navOpen ? "x" : "list"} size={18} style={{color:"var(--text-secondary)"}}/>
-          </button>
         </div>
       </div>
-
-      {navOpen && <div className="app-nav-backdrop" onClick={()=>setNavOpen(false)}/>}
 
       <div className="app-content">
         {view === VIEWS.ADD && (
@@ -2345,10 +2340,10 @@ function App() {
         )}
       </div>
 
-      <div className={`app-nav${navOpen ? " app-nav-open" : ""}`}>
+      <div className="app-nav">
         {NAV.map(n => (
           <button key={n.id} data-active={view===n.id}
-            onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); setNavOpen(false); }}
+            onClick={()=>{ setView(n.id); if (n.id !== VIEWS.ADD) setEditTarget(null); }}
             style={{background:"transparent",border:"none",
               color:view===n.id?"var(--accent)":"var(--text-muted)",
               display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
