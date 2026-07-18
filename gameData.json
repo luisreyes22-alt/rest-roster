@@ -10283,7 +10283,8 @@
         "all"
       ],
       "expert": false,
-      "note": "Acepta todas las berries"
+      "note": "Acepta todas las berries. Each week 3 favorite berries are drawn (1 main + 2 sub, same as Expert Mode's draw) but with NO random bonus category - each favorite berry just gives 2x its normal strength/value, main and sub identical. Configure this in the Team tab.",
+      "weeklyBerries": true
     },
     "Cyan Beach": {
       "berries": [

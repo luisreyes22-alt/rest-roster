@@ -168,7 +168,7 @@ function IngredientQuickEdit({pokemon, speciesData, onUpdateIngredient}) {
 
 function PokemonCard({pokemon, rank, isWinner, onAddToRoster, inRoster, onRemoveFromRoster, onEdit, onUpdateIngredient, collapsible, role, defaultOpen}) {
   const mods = natureMods(pokemon.nature);
-  const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * mods.speed * 10) / 10;
+  const helpsPerHour  = Math.round(3600 / freqToSecs(pokemon.frequency) * 10) / 10;
   const subskillScore = scoreSubskills(pokemon.subskills, pokemon.level);
   const mainSkillPwr  = Math.round(scoreMainSkill(pokemon) * mods.skill * 10) / 10;
   const score         = Math.round(totalScore(pokemon) * 10) / 10;
@@ -1416,11 +1416,19 @@ function TeamView({roster, onGoAdd}) {
   const [result, setResult] = useState(null);
   const [bestDishes, setBestDishes] = useState(null);
   const [expandedBest, setExpandedBest] = useState(null);
+  const [potSize, setPotSize] = useState("");
   const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
   const isExpertIsland = island && GAME.islands[island].expert;
-  const expertReady = !isExpertIsland || (expert.mainBerry && expert.subBerry1 && expert.subBerry2);
+  // Regular Greengrass Isle also draws 3 favorite berries weekly (1 main + 2 sub,
+  // same picker shape as Expert Mode) but with no random bonus category - see
+  // "Greengrass Isle" vs "Greengrass Isle (Expert Mode)" in gameData.json.
+  const hasWeeklyBerries = island && GAME.islands[island].weeklyBerries;
+  const needsBerryPickers = isExpertIsland || hasWeeklyBerries;
+  const expertReady = !needsBerryPickers || (expert.mainBerry && expert.subBerry1 && expert.subBerry2);
   const expertConfig = isExpertIsland
     ? { mainBerry: expert.mainBerry, subBerries: [expert.subBerry1, expert.subBerry2], randomBonus: expert.randomBonus }
+    : hasWeeklyBerries
+    ? { favoriteBerries: [expert.mainBerry, expert.subBerry1, expert.subBerry2].filter(Boolean) }
     : null;
 
   if (roster.length === 0) return (
@@ -1466,50 +1474,67 @@ function TeamView({roster, onGoAdd}) {
         )}
       </div>
 
-      {isExpertIsland && (
+      {needsBerryPickers && (
         <div style={{background:"var(--surface-alt)",border:"1px solid var(--border)",
           borderRadius:"var(--radius-control)",padding:"14px 16px",marginBottom:14}}>
           <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:10,
             letterSpacing:"0.05em"}}>THIS WEEK'S SETTINGS (from the in-game island screen)</div>
 
-          <BerryPicker label="Main favorite berry *" value={expert.mainBerry}
+          <BerryPicker label={isExpertIsland ? "Main favorite berry *" : "Favorite berry 1 *"} value={expert.mainBerry}
             onChange={v=>{setExpert(prev=>({...prev, mainBerry: v})); setResult(null);}}
             disabledNames={[expert.subBerry1, expert.subBerry2]}/>
           <div style={{display:"flex",gap:10}}>
             <div style={{flex:1}}>
-              <BerryPicker label="Sub favorite 1 *" value={expert.subBerry1}
+              <BerryPicker label={isExpertIsland ? "Sub favorite 1 *" : "Favorite berry 2 *"} value={expert.subBerry1}
                 onChange={v=>{setExpert(prev=>({...prev, subBerry1: v})); setResult(null);}}
                 disabledNames={[expert.mainBerry, expert.subBerry2]}/>
             </div>
             <div style={{flex:1}}>
-              <BerryPicker label="Sub favorite 2 *" value={expert.subBerry2}
+              <BerryPicker label={isExpertIsland ? "Sub favorite 2 *" : "Favorite berry 3 *"} value={expert.subBerry2}
                 onChange={v=>{setExpert(prev=>({...prev, subBerry2: v})); setResult(null);}}
                 disabledNames={[expert.mainBerry, expert.subBerry1]}/>
             </div>
           </div>
-          <div className="field" style={{marginBottom:0}}>
-            <label>Random bonus this week *</label>
-            <select value={expert.randomBonus} onChange={e=>{setExpert(prev=>({...prev, randomBonus: e.target.value})); setResult(null);}}>
-              <option value="ingredient">Ingredients — extra ingredients from favored berries</option>
-              <option value="berry">Berries — favored-berry strength boosted</option>
-              <option value="skill">Skills — favored-berry skill chance boosted</option>
-            </select>
-          </div>
+          {isExpertIsland && (
+            <div className="field" style={{marginBottom:0}}>
+              <label>Random bonus this week *</label>
+              <select value={expert.randomBonus} onChange={e=>{setExpert(prev=>({...prev, randomBonus: e.target.value})); setResult(null);}}>
+                <option value="ingredient">Ingredients — extra ingredients from favored berries</option>
+                <option value="berry">Berries — favored-berry strength boosted</option>
+                <option value="skill">Skills — favored-berry skill chance boosted</option>
+              </select>
+            </div>
+          )}
           <div style={{marginTop:10,fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",lineHeight:1.6}}>
-            Main favorite: 10% faster help + skill level +1. Sub favorites: normal speed. Neither: 15% slower.
+            {isExpertIsland
+              ? "Main favorite: 10% faster help + skill level +1. Sub favorites: normal speed. Neither: 15% slower."
+              : "Each of the 3 favorite berries gives 2x its normal strength/value when produced - no speed change, no bonus category (that's Expert Mode only)."}
           </div>
         </div>
       )}
 
       {island && expertReady && (
         <div style={{marginBottom:20}}>
-          <button onClick={()=>{ setBestDishes(bestAchievableDish(roster, island, expertConfig).slice(0,3)); setExpandedBest(null); }}
+          <div className="field">
+            <label>Pot size (optional)</label>
+            <input type="number" inputMode="numeric" placeholder="e.g. 15 — leave blank to ignore pot size"
+              value={potSize} onChange={e=>setPotSize(e.target.value)}/>
+          </div>
+          <div style={{margin:"-6px 0 10px",fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
+            Recipes needing more ingredient slots than your pot holds are skipped
+          </div>
+          <button onClick={()=>{ setBestDishes(bestAchievableDish(roster, island, expertConfig, undefined, parseInt(potSize) || undefined).slice(0,3)); setExpandedBest(null); }}
             style={{width:"100%",padding:12,background:"var(--accent-soft)",border:"1px solid var(--accent)",
               borderRadius:"var(--radius-pill)",color:"var(--accent-strong)",fontSize:13,fontWeight:700,
               display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
             <Icon name="sparkle" size={15}/> FIND MY BEST ACHIEVABLE DISH
           </button>
-          {bestDishes && (
+          {bestDishes && bestDishes.length === 0 && (
+            <div style={{marginTop:10,fontSize:12,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
+              No recipe fits a pot size of {potSize} ingredient slots.
+            </div>
+          )}
+          {bestDishes && bestDishes.length > 0 && (
             <div style={{marginTop:10}}>
               <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
                 letterSpacing:"0.05em"}}>RANKED BY RECIPE VALUE × YOUR ROSTER'S REAL PRODUCTION</div>
@@ -1523,6 +1548,8 @@ function TeamView({roster, onGoAdd}) {
                         textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i+1}. {bd.recipe.name}</div>
                       <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
                         ~{bd.achievable.toLocaleString()} achievable · {bd.result.coveragePct}% of {bd.fullValue.toLocaleString()}
+                        {bd.fullValueAtMaxLevel != null && bd.fullValueAtMaxLevel > bd.fullValue &&
+                          ` (maxed recipe level: ${bd.fullValueAtMaxLevel.toLocaleString()})`}
                       </div>
                     </div>
                     <Icon name={expandedBest===i?"caret-up":"caret-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>
@@ -1597,6 +1624,10 @@ function TeamView({roster, onGoAdd}) {
                 <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}>
                   <Icon name="island" size={13}/> {result.mainMatches} main / {result.subMatches} sub favorite
                 </span>
+              ) : result.isWeeklyFavorite ? (
+                <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}>
+                  <Icon name="island" size={13}/> {result.favoriteMatches}/5 favorite berry (2x)
+                </span>
               ) : (
                 <span style={{display:"flex",alignItems:"center",gap:4,color:"var(--text-secondary)"}}><Icon name="island" size={13}/> {result.matches}/5 berry match</span>
               )}
@@ -1620,6 +1651,21 @@ function TeamView({roster, onGoAdd}) {
               {result.warnings.map((w,i) => (
                 <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:11,color:"var(--tier-s)",lineHeight:1.7,fontFamily:"'JetBrains Mono', monospace"}}>
                   <Icon name="warning" size={13} style={{marginTop:2,flexShrink:0}}/> {w}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Strategy tips - team-synergy context (Helper Boost, Bad Dreams, Lunar
+              Blessing, Helping Bonus) the raw score can't fully express. Distinct
+              from warnings: these aren't problems, just useful context. */}
+          {result.tips?.length > 0 && (
+            <div style={{background:"var(--info-bg)",border:"1px solid var(--info)",
+              borderRadius:"var(--radius-control)",padding:"12px 14px",marginBottom:16}}>
+              {result.tips.map((t,i) => (
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:11,color:"var(--info)",lineHeight:1.7,fontFamily:"'JetBrains Mono', monospace",
+                  marginBottom:i<result.tips.length-1?6:0}}>
+                  <Icon name="lightbulb" size={13} style={{marginTop:2,flexShrink:0}}/> {t}
                 </div>
               ))}
             </div>
