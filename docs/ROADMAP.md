@@ -205,3 +205,42 @@ bubblewrap build   # produces signed .aab/.apk + keystore
 - 2026-07-07: tests + Vite build ordered before Android packaging.
 - 2026-07-07: Pokedex switches from owned-only to full dex with filters +
   region grouping (user decision, supersedes 2026-07-06 choice).
+- 2026-07-17: bugfix - regular "Greengrass Isle" (not Expert Mode) also draws
+  3 favorite berries weekly in-game (1 main + 2 sub, same draw shape as
+  Expert Mode) but with NO random bonus category - each favorite berry just
+  doubles its own base value/strength, no speed change. The team builder
+  previously had no way to take this into account (the island was modeled as
+  a flat "accepts all berries", so picking no berries meant the berry axis
+  ignored which 3 berries actually dropped that week). Added
+  `weeklyBerries: true` to gameData.json's "Greengrass Isle" entry (distinct
+  from "Greengrass Isle (Expert Mode)"'s `expert: true`), reused the existing
+  3-berry-picker UI (mainBerry/subBerry1/subBerry2 state) without the
+  random-bonus dropdown, and doubled the flat berry-axis bonus in
+  `buildTeam`'s `berryAxis` for a matching mon. See formulas.js/.cjs,
+  public/formulas.js, app.jsx's TeamView, and the new tests in
+  tests/formulas.test.cjs.
+- 2026-07-17: Team Builder audit (docs/AUDIT_TEAM_BUILDER_2026-07-17.md) run
+  against RaenonX/Neroli's Lab/Serebii mechanics to check whether the
+  recommended team is actually optimal. Phase 1 fix landed: nature's speed
+  modifier was being double-counted. `p.frequency` is entered straight off
+  the Pokemon's in-game info screen, which the game already computes with
+  level, nature AND subskills applied (only energy is excluded) - confirmed
+  by the game's own display behavior (a neutral nature shows unchanged speed
+  only because its equal buff/nerf cancel, which is meaningless unless
+  nature is already baked into what's shown) and by the app's own form
+  copy ("Auto-filled with the species base - adjust it if your Pokémon
+  differs"). `totalScore`, `ingredientRate`, `ingredientRatesByName`, and
+  `buildTeam`'s `baseAxis` were all re-multiplying `natureMods().speed` into
+  helps/hour on top of that already-modified frequency, silently inflating
+  every +speed mon's estimated output (and deflating every -speed mon) by
+  ~10%. Removed the redundant multiplication everywhere helps/hour is
+  computed; `mods.speed` still exists on `natureMods()` for reference but
+  must never be multiplied into a rate again. `mods.skill` (main-skill
+  chance) and `mods.ing` (ingredient finding) are untouched - those aren't
+  reflected in the displayed frequency. Added a regression test pinning a
+  Speed-of-help nature (paired with an Energy-recovery nerf, which this
+  score model doesn't touch) to produce identical helps/hour as a neutral
+  nature at the same stored frequency. Remaining audit phases (real-unit
+  berry/skill axes, energy modeling, team-level legendary synergies like
+  Helper Boost/Bad Dreams, greedy+swap search) are tracked in the audit doc,
+  not yet started.

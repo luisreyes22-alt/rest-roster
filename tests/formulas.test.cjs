@@ -264,3 +264,70 @@ test("buildTeam reports coveragePct only when a recipe is selected, always withi
   const withDish = Formulas.buildTeam(roster, nonExpertIsland, GAME.recipes[0].name, null);
   assert.ok(withDish.coveragePct >= 0 && withDish.coveragePct <= 100);
 });
+
+// ── Nature speed double-count regression ────────────────────────────────────────
+// Regression for a reported bug: p.frequency is read straight off the Pokemon's
+// in-game info screen, which the game already computes with nature's speed effect
+// applied (confirmed: a neutral nature like Serious shows unchanged speed only
+// because its equal buff/nerf cancel - that's meaningless unless nature is already
+// baked into what's displayed). Multiplying natureMods().speed into rate math on
+// top of that double-counted the bonus. Only skill-chance/ingredient-finding
+// natures are separate stats not reflected in the displayed frequency.
+
+test("helps/hour is read directly from frequency and does not reapply nature's speed modifier", () => {
+  const species = pickSpecies(() => true);
+  // Must nerf a stat this score model doesn't touch (Energy recovery), not
+  // Ingredient finding/Main skill chance - otherwise that paired nerf legitimately
+  // changes ingredientRate and masks whether the speed double-count is fixed.
+  const speedBuffNature = Object.keys(GAME.natures).find(n => GAME.natures[n].buff === "Speed of help" && GAME.natures[n].nerf === "Energy recovery");
+  const neutralNature = Object.keys(GAME.natures).find(n => !GAME.natures[n].buff && !GAME.natures[n].nerf);
+  assert.ok(speedBuffNature, "expected a Speed-of-help nature that nerfs Energy recovery (untouched by this score model)");
+
+  const fastNature = mon({ id: "fast", species, nature: speedBuffNature, frequency: "40 mins 0 secs" });
+  const neutralNatureMon = mon({ id: "neutral", species, nature: neutralNature, frequency: "40 mins 0 secs" });
+
+  // Same stored frequency (as read from the in-game info screen) must yield the
+  // same helps/hour regardless of nature - nature's speed effect is already
+  // reflected in that stored value, so it must not be applied a second time.
+  const rateFast = Formulas.ingredientRate(fastNature);
+  const rateNeutral = Formulas.ingredientRate(neutralNatureMon);
+  assert.equal(rateFast, rateNeutral,
+    "identical frequency must produce identical throughput regardless of nature - nature is already baked into the stored frequency");
+});
+
+// ── Greengrass Isle regular weekly favorite berries ────────────────────────────
+// Regression for the reported bug: on regular Greengrass Isle (not Expert Mode),
+// picking no berries meant the team builder had no way to reward the 3 favorite
+// berries the player actually rolled that week (each doubles its own berry value,
+// no speed change, no random bonus category - that's Expert Mode only).
+
+test("Greengrass Isle is modeled as having weekly favorite berries, distinct from Expert Mode", () => {
+  assert.equal(GAME.islands["Greengrass Isle"].weeklyBerries, true);
+  assert.equal(GAME.islands["Greengrass Isle"].expert, false);
+  assert.equal(GAME.islands["Greengrass Isle (Expert Mode)"].expert, true);
+});
+
+test("without a favoriteBerries config, Greengrass Isle scores as a plain accepts-all island", () => {
+  const roster = Object.keys(GAME.species).slice(0, 5).map((s, i) => mon({ id: `p${i}`, species: s }));
+  const result = Formulas.buildTeam(roster, nonExpertIsland, null, null);
+  assert.equal(result.isWeeklyFavorite, false);
+  assert.equal(result.favoriteMatches, undefined);
+});
+
+test("a mon carrying one of this week's 3 favorite berries displaces an otherwise-identical non-favorite mon", () => {
+  const species = Object.keys(GAME.species)[0];
+  const config = { favoriteBerries: ["Oran", "Leppa", "Sitrus"] };
+
+  // 5 identical fillers (non-favorite berry) fully occupy the team; a 6th mon,
+  // identical in every other axis, carries a favorite berry and should bump one out.
+  const filler = [0,1,2,3,4].map(i => mon({ id: `filler${i}`, species, berry: "Persim", specialty: "Berries" }));
+  const challenger = mon({ id: "challenger", species, berry: "Oran", specialty: "Berries" });
+
+  const result = Formulas.buildTeam([...filler, challenger], nonExpertIsland, null, config);
+  assert.equal(result.isWeeklyFavorite, true);
+  assert.equal(result.favoriteMatches, 1);
+  assert.ok(result.team.some(p => p.id === "challenger"),
+    "the favorite-berry mon must displace a non-favorite filler when every other axis is tied");
+  assert.ok(result.team.some(p => p.role === "Berries (favorite)"),
+    "the favorite-berry pick should be labeled distinctly from a plain island-berry match");
+});

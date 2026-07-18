@@ -71,6 +71,15 @@
   // asymmetric), skill-chance natures are x1.2 / x0.8, ingredient-finding x1.2 / x0.8.
   // The energy/EXP axes aren't part of this score model, so natures touching only
   // those stay neutral here.
+  //
+  // `speed` is exposed for reference/UI display only - it must NOT be multiplied into
+  // any helps/hour calculation. The frequency the player enters (p.frequency) is read
+  // directly off the Pokemon's in-game info screen, which already reflects nature and
+  // subskills (verified: a neutral nature like Serious shows unchanged speed because its
+  // equal buff/nerf cancel out - that only means anything if nature is already applied
+  // to what's displayed). Multiplying mods.speed into rate math on top of that
+  // double-counts the nature bonus. Only mods.skill (main-skill chance) and mods.ing
+  // (ingredient-finding) are separate stats not baked into the displayed frequency.
   function natureMods(natureName) {
     const n = GAME?.natures?.[natureName] || {};
     return {
@@ -83,7 +92,7 @@
   function totalScore(p) {
     const mods = natureMods(p.nature);
     return scoreSubskills(p.subskills, p.level) * 2
-         + (3600 / freqToSecs(p.frequency)) * mods.speed
+         + (3600 / freqToSecs(p.frequency))
          + scoreMainSkill(p) * mods.skill;
   }
 
@@ -180,14 +189,15 @@
   // Model (an estimate, not a simulation): each help procs ingredients with chance
   // ingredientPercent x nature x (1 + Ingredient Finder bonuses); a proc draws one
   // unlocked slot uniformly and yields that slot's amount of that slot's ingredient.
-  // Frequency is the mon's measured in-game value, so Helping Speed subskills are
-  // already baked in - only the nature speed modifier is applied on top here.
+  // Frequency is the mon's measured in-game value, so BOTH Helping Speed subskills
+  // AND nature's speed effect are already baked in - do not reapply mods.speed here
+  // (see natureMods' comment for why).
   // With no neededSet, rates ALL ingredient production (general throughput).
   function ingredientRate(p, neededSet) {
     const sp = GAME.species[p.species];
     if (!sp) return 0;
     const mods = natureMods(p.nature);
-    const helpsPerHour = (3600 / freqToSecs(p.frequency)) * mods.speed;
+    const helpsPerHour = 3600 / freqToSecs(p.frequency);
     let finderBonus = 0;
     for (const [slot, entry] of Object.entries(p.subskills || {})) {
       if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
@@ -271,7 +281,7 @@
     const sp = GAME.species[p.species];
     if (!sp) return {};
     const mods = natureMods(p.nature);
-    const helpsPerHour = (3600 / freqToSecs(p.frequency)) * mods.speed;
+    const helpsPerHour = 3600 / freqToSecs(p.frequency);
     let finderBonus = 0;
     for (const [slot, entry] of Object.entries(p.subskills || {})) {
       if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
@@ -299,6 +309,12 @@
 
     const isExpert = island.expert && expertSettings;
 
+    // Regular Greengrass Isle also draws 3 favorite berries each week (1 main + 2
+    // sub, same draw shape as Expert Mode) but with NO random bonus category and NO
+    // help-frequency change - a favorite berry just doubles its own base value/
+    // strength when produced. Distinct from isExpert: it never touches expertFreqMult.
+    const isWeeklyFavorite = !!(island.weeklyBerries && expertSettings && expertSettings.favoriteBerries);
+
     // Expert-mode favored berries change help frequency (main 0.9x / sub 1.0x /
     // none 1.15x), which scales BOTH dish production and general output.
     function expertFreqMult(p) {
@@ -318,7 +334,9 @@
         return v;
       }
       if (!berryMatch(p)) return 0;
-      return p.specialty === "Berries" ? 8 : 3;
+      const base = p.specialty === "Berries" ? 8 : 3;
+      if (isWeeklyFavorite && expertSettings.favoriteBerries.includes(p.berry)) return base * 2;
+      return base;
     }
 
     function metaAxis(p) {
@@ -330,9 +348,8 @@
     // deliberately NOT included here - it already has its own axis, and counting it
     // twice let a steep strength curve leak back in through the base term.
     function baseAxis(p) {
-      const mods = natureMods(p.nature);
       return scoreSubskills(p.subskills, p.level) * 2
-           + (3600 / freqToSecs(p.frequency)) * mods.speed * expertFreqMult(p);
+           + (3600 / freqToSecs(p.frequency)) * expertFreqMult(p);
     }
 
     // Remaining demand per recipe ingredient, decremented after each pick so the
@@ -387,6 +404,7 @@
         if (tier === "main") return "Berries (main favorite)";
         if (tier === "sub") return "Berries (sub favorite)";
       }
+      if (isWeeklyFavorite && expertSettings.favoriteBerries.includes(p.berry)) return "Berries (favorite)";
       return "Berries (island)";
     }
 
@@ -440,7 +458,7 @@
     const hasSustain = team.some(p => skillFunction(p.mainSkill) === "sustain");
     if (!hasSustain) warnings.push("No energy-recovery skill on the team — real production will run below these estimates as energy drains");
 
-    let matches, mainMatches, subMatches;
+    let matches, mainMatches, subMatches, favoriteMatches;
     if (isExpert) {
       mainMatches = team.filter(p => expertBerryTier(p, expertSettings) === "main").length;
       subMatches = team.filter(p => expertBerryTier(p, expertSettings) === "sub").length;
@@ -450,6 +468,10 @@
       const bonusSpecialty = bonusKey === "ingredient" ? "Ingredients" : bonusKey === "berry" ? "Berries" : "Skills";
       const hasBonusSynergy = team.some(p => p.specialty === bonusSpecialty && expertBerryTier(p, expertSettings) !== "none");
       if (!hasBonusSynergy) warnings.push(`This week's ${EXPERT_BONUS_LABELS[bonusKey]} bonus needs a favored-berry ${bonusSpecialty} specialist to pay off - none made the team`);
+    } else if (isWeeklyFavorite) {
+      favoriteMatches = team.filter(p => expertSettings.favoriteBerries.includes(p.berry)).length;
+      matches = team.filter(berryMatch).length;
+      if (favoriteMatches === 0) warnings.push("No team member carries one of this week's 3 favorite berries — missing the double-strength berry bonus");
     } else {
       matches = team.filter(berryMatch).length;
       if (matches < 2) warnings.push("Few Pokémon matching the island berries — low Drowsy Power");
@@ -476,7 +498,7 @@
       }
     }
 
-    return { team, specialties, matches, mainMatches, subMatches, isExpert, expertSettings, warnings, recipe, missingIngredients, coveragePct };
+    return { team, specialties, matches, mainMatches, subMatches, favoriteMatches, isExpert, isWeeklyFavorite, expertSettings, warnings, recipe, missingIngredients, coveragePct };
   }
 
   // Best-achievable-dish: instead of the player guessing which dish to select,
