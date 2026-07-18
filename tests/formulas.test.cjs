@@ -261,6 +261,30 @@ test("bestAchievableDish returns every recipe ranked by achievable value, descen
   });
 });
 
+// ── Team Builder audit phase 4: pot-size filter + max-level value ──────────────
+
+test("bestAchievableDish exposes fullValueAtMaxLevel using gameData's recipe.valueMax", () => {
+  const roster = Object.keys(GAME.species).slice(0, 10).map((s, i) => mon({ id: `r${i}`, species: s }));
+  const ranked = Formulas.bestAchievableDish(roster, nonExpertIsland, null);
+  ranked.forEach(r => {
+    if (r.recipe.valueMax != null) {
+      assert.ok(r.fullValueAtMaxLevel >= r.fullValue, "the maxed-level value must be at least the level-1 value");
+    }
+  });
+});
+
+test("bestAchievableDish's potSize filter excludes recipes the pot can't hold, and is a no-op when omitted", () => {
+  const roster = Object.keys(GAME.species).slice(0, 10).map((s, i) => mon({ id: `r${i}`, species: s }));
+  const smallestRecipeSize = Math.min(...GAME.recipes.map(r => r.nrOfIngredients));
+  const rankedNoFilter = Formulas.bestAchievableDish(roster, nonExpertIsland, null, undefined, undefined);
+  assert.equal(rankedNoFilter.length, GAME.recipes.length, "omitting potSize must rank every recipe, unchanged from before this option existed");
+
+  const rankedFiltered = Formulas.bestAchievableDish(roster, nonExpertIsland, null, undefined, smallestRecipeSize);
+  assert.ok(rankedFiltered.length < rankedNoFilter.length || rankedFiltered.length === GAME.recipes.filter(r => r.nrOfIngredients <= smallestRecipeSize).length,
+    "a pot only big enough for the smallest recipe must exclude every larger one");
+  rankedFiltered.forEach(r => assert.ok(r.recipe.nrOfIngredients <= smallestRecipeSize, "every ranked recipe must fit the given pot size"));
+});
+
 test("buildTeam reports coveragePct only when a recipe is selected, always within 0-100", () => {
   const roster = Object.keys(GAME.species).slice(0, 10).map((s, i) => mon({ id: `c${i}`, species: s }));
   const noDish = Formulas.buildTeam(roster, nonExpertIsland, null, null);

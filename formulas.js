@@ -796,13 +796,29 @@
   // and return them ranked. A 5000-value dish the roster can only 40%-supply loses
   // to a 3500-value dish it fully covers - which is the honest answer to "what's
   // the highest dish we can actually cook".
-  function bestAchievableDish(roster, islandName, expertSettings, mealType) {
-    const recipes = GAME.recipes.filter(r => !mealType || r.type === mealType);
+  //
+  // `potSize` (optional): recipes need at least `nrOfIngredients` total ingredient
+  // slots in the pot to cook at all - without a cap, a big-recipe/big-bonus dish can
+  // rank #1 even if the player's pot can't physically hold it yet. Omit to rank
+  // every recipe regardless of pot size (unchanged default behavior).
+  //
+  // `fullValueAtMaxLevel` (on each ranked entry): gameData's `recipe.valueMax` is
+  // the dish's value once fully leveled - this app has no per-recipe level tracking
+  // (no leveling UI exists yet), so ranking still uses the conservative `fullValue`
+  // (level-1 value) rather than guessing the player's actual recipe level. The maxed
+  // figure is exposed alongside it so the UI can show the ceiling without asserting
+  // a specific number as the truth.
+  function bestAchievableDish(roster, islandName, expertSettings, mealType, potSize) {
+    const recipes = GAME.recipes
+      .filter(r => !mealType || r.type === mealType)
+      .filter(r => !potSize || r.nrOfIngredients <= potSize);
     const ranked = recipes.map(recipe => {
       const result = buildTeam(roster, islandName, recipe.name, expertSettings);
-      const fullValue = recipe.value * (1 + (recipe.bonusPercent || 0) / 100);
+      const bonusMult = 1 + (recipe.bonusPercent || 0) / 100;
+      const fullValue = recipe.value * bonusMult;
+      const fullValueAtMaxLevel = recipe.valueMax != null ? Math.round(recipe.valueMax * bonusMult) : null;
       const achievable = Math.round(fullValue * (result.coveragePct || 0) / 100);
-      return { recipe, result, achievable, fullValue: Math.round(fullValue) };
+      return { recipe, result, achievable, fullValue: Math.round(fullValue), fullValueAtMaxLevel };
     });
     ranked.sort((a, b) => b.achievable - a.achievable);
     return ranked;

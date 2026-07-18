@@ -1416,6 +1416,7 @@ function TeamView({roster, onGoAdd}) {
   const [result, setResult] = useState(null);
   const [bestDishes, setBestDishes] = useState(null);
   const [expandedBest, setExpandedBest] = useState(null);
+  const [potSize, setPotSize] = useState("");
   const recipe = recipeName ? GAME.recipes.find(r => r.name === recipeName) : null;
   const isExpertIsland = island && GAME.islands[island].expert;
   // Regular Greengrass Isle also draws 3 favorite berries weekly (1 main + 2 sub,
@@ -1514,13 +1515,26 @@ function TeamView({roster, onGoAdd}) {
 
       {island && expertReady && (
         <div style={{marginBottom:20}}>
-          <button onClick={()=>{ setBestDishes(bestAchievableDish(roster, island, expertConfig).slice(0,3)); setExpandedBest(null); }}
+          <div className="field">
+            <label>Pot size (optional)</label>
+            <input type="number" inputMode="numeric" placeholder="e.g. 15 — leave blank to ignore pot size"
+              value={potSize} onChange={e=>setPotSize(e.target.value)}/>
+          </div>
+          <div style={{margin:"-6px 0 10px",fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
+            Recipes needing more ingredient slots than your pot holds are skipped
+          </div>
+          <button onClick={()=>{ setBestDishes(bestAchievableDish(roster, island, expertConfig, undefined, parseInt(potSize) || undefined).slice(0,3)); setExpandedBest(null); }}
             style={{width:"100%",padding:12,background:"var(--accent-soft)",border:"1px solid var(--accent)",
               borderRadius:"var(--radius-pill)",color:"var(--accent-strong)",fontSize:13,fontWeight:700,
               display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
             <Icon name="sparkle" size={15}/> FIND MY BEST ACHIEVABLE DISH
           </button>
-          {bestDishes && (
+          {bestDishes && bestDishes.length === 0 && (
+            <div style={{marginTop:10,fontSize:12,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
+              No recipe fits a pot size of {potSize} ingredient slots.
+            </div>
+          )}
+          {bestDishes && bestDishes.length > 0 && (
             <div style={{marginTop:10}}>
               <div style={{fontSize:11,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
                 letterSpacing:"0.05em"}}>RANKED BY RECIPE VALUE × YOUR ROSTER'S REAL PRODUCTION</div>
@@ -1534,6 +1548,8 @@ function TeamView({roster, onGoAdd}) {
                         textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{i+1}. {bd.recipe.name}</div>
                       <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace"}}>
                         ~{bd.achievable.toLocaleString()} achievable · {bd.result.coveragePct}% of {bd.fullValue.toLocaleString()}
+                        {bd.fullValueAtMaxLevel != null && bd.fullValueAtMaxLevel > bd.fullValue &&
+                          ` (maxed recipe level: ${bd.fullValueAtMaxLevel.toLocaleString()})`}
                       </div>
                     </div>
                     <Icon name={expandedBest===i?"caret-up":"caret-down"} size={16} style={{color:"var(--text-muted)",flexShrink:0}}/>

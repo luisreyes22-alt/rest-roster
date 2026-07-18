@@ -167,6 +167,18 @@ which recipes are cookable at all. Ranking across recipes can therefore be
 skewed toward big recipes the pot can't hold or low-level recipes. Cheap wins:
 pot-size filter + optional per-recipe level input (or a global "assume level N").
 
+**PARTIALLY RESOLVED 2026-07-17 (phase 4)**: pot-size filter done - optional
+`potSize` param on `bestAchievableDish` skips recipes whose `nrOfIngredients`
+exceeds it, wired to a "Pot size (optional)" input in TeamView. Recipe-level
+value: gameData already had `recipe.valueMax` (the maxed-level figure) - now
+exposed as `fullValueAtMaxLevel` on each ranked entry for context. Did NOT
+switch ranking to use it or add a level input, because this app has no
+per-recipe level tracking anywhere - guessing "assume level N" for every
+recipe would be exactly the kind of unsourced magnitude this project's rules
+reject; a real fix needs a recipe-level UI feature, not a formula tweak.
+Sunday extra-tasty bonus is untouched - no day-of-week context exists in the
+app yet either.
+
 ### I. [DESIGN NOTE — OK] Greedy is myopic but acceptable; add a swap pass
 Greedy-marginal can miss combos (especially once F exists, e.g. 3 Electric mons
 are individually mediocre but jointly unlock Helper Boost). Full search C(N,5)
@@ -218,9 +230,24 @@ round). This also gives F a place to live: score teams, not just individuals.
    Sunday extra-tasty tips (no sleep-schedule or day-of-week context in this
    app yet - would need new inputs, not just formula work).
 
-**Phase 4 — polish**
-9. H: pot-size filter + recipe-level multiplier in bestAchievableDish.
-10. Roadmap/user-guide updates + regression tests per phase (freeze new numbers).
+**Phase 4 — polish — DONE 2026-07-17**
+9. ~~H~~: pot-size filter shipped (`potSize` param + TeamView input).
+   Recipe-level multiplier NOT done as ranking input - no per-recipe level UI
+   exists in this app, and guessing a level would violate the sourcing rule;
+   `fullValueAtMaxLevel` is exposed as context instead. Sunday extra-tasty
+   also untouched (no day-of-week context in the app).
+10. ~~Roadmap/user-guide updates + regression tests per phase~~: done
+    throughout - see the 2026-07-17 entries in docs/ROADMAP.md's decision
+    log. 31 formula tests pass across all four phases.
+
+## Status: audit closed except B
+Phases 1-4 are done. The one item from this audit still fully open is
+**B (energy modeling)** - everything else (nature double-count, favorite
+berries, real-unit berry/skill axes, Helper Boost synergy, pot-size
+filtering) either shipped quantitatively or was deliberately deferred to a
+new feature (recipe-level tracking) or to B itself (Bad Dreams/Lunar
+Blessing/Helping Bonus quantification). B would also make the existing
+"no sustain skill" warning precise instead of qualitative.
 
 ## Sources
 - RaenonX helping frequency formula: https://pks.raenonx.cc/en/docs/view/technical/helping-frequency

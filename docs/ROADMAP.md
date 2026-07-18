@@ -325,3 +325,23 @@ bubblewrap build   # produces signed .aab/.apk + keystore
   tests pass. Energy modeling (B) remains the one unstarted audit item;
   Bad Dreams/Lunar Blessing/Helping Bonus quantification is now explicitly
   blocked on it rather than silently missing.
+- 2026-07-17: Team Builder audit phase 4 landed - `bestAchievableDish` gained
+  an optional `potSize` filter (5th positional arg, omit for unchanged
+  behavior) that skips recipes needing more ingredient slots than the pot
+  can hold, and exposes `fullValueAtMaxLevel` on each ranked entry using
+  gameData's existing `recipe.valueMax` (no new data needed). Ranking still
+  uses the conservative level-1 `fullValue`, not a guessed player recipe
+  level - this app has no per-recipe level tracking UI, and guessing a level
+  would violate the project's real-formulas-not-guesses rule; the maxed
+  figure is only surfaced as context, e.g. "achievable · X% of Y (maxed
+  recipe level: Z)". Wired a "Pot size (optional)" number input into
+  TeamView above the achievable-dish button (app.jsx) - blank means no
+  filter, same as omitting the argument. Added 2 regression tests (maxed
+  value is never below level-1 value; potSize excludes oversized recipes and
+  is a true no-op when omitted, preserving the existing "ranks every recipe"
+  test). All 31 formula tests pass.
+  This closes out the 2026-07-17 Team Builder audit's four planned phases.
+  The one remaining open item from the audit is B (energy modeling), which
+  Bad Dreams/Lunar Blessing/Helping Bonus quantification and a more accurate
+  throughput estimate for "no sustain skill" teams are now explicitly
+  blocked on - see docs/AUDIT_TEAM_BUILDER_2026-07-17.md.
