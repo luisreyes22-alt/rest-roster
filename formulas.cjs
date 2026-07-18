@@ -38,6 +38,13 @@
   // for backward compatibility) goes stale the moment a pokemon levels past a threshold.
   const isSubskillLocked = (pokemonLevel, slotLevel) => (parseInt(pokemonLevel) || 0) < slotLevel;
 
+  // Whether a pokemon currently has a specific subskill unlocked (level-gated).
+  function hasUnlockedSubskill(p, name) {
+    return Object.entries(p.subskills || {}).some(
+      ([slot, entry]) => entry?.name === name && !isSubskillLocked(p.level, parseInt(slot))
+    );
+  }
+
   function scoreSubskills(subskills, pokemonLevel) {
     let s = 0;
     for (const [slot, entry] of Object.entries(subskills || {})) {
@@ -153,11 +160,41 @@
   };
   function skillFunction(skillName) { return SKILL_FUNCTIONS[skillName] || "neutral"; }
 
-  // Function-weighted skill value for team building: same curve math as
-  // scoreMainSkill, scaled by what the skill actually does for the team goal.
+  // Skill Trigger S/M subskill bonuses: community-established (Neroli's Lab
+  // common/src/types/subskill/subskills.ts SKILL_TRIGGER_S/M.amount), same additive
+  // shape as INGREDIENT_FINDER_BONUS - M +36%, S +18%, stacking additively.
+  const SKILL_TRIGGER_BONUS = { "Skill Trigger M": 0.36, "Skill Trigger S": 0.18 };
+
+  // Expected main-skill activations/hour: species base skillPercent x nature x
+  // (1 + Skill Trigger subskill bonuses), applied per help. Mirrors Neroli's Lab
+  // calculateSkillPercentage - deliberately NOT modeling the "pity proc" mechanic
+  // (a guaranteed trigger every N helps for skill specialists), which would raise
+  // this estimate further for low-skillPercent skill mons; treat this as a
+  // conservative floor for team building, not the exact expected value.
+  function skillActivationRate(p) {
+    const sp = GAME.species[p.species];
+    if (!sp) return 0;
+    const mods = natureMods(p.nature);
+    const helpsPerHour = 3600 / freqToSecs(p.frequency);
+    let triggerBonus = 0;
+    for (const [slot, entry] of Object.entries(p.subskills || {})) {
+      if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
+      triggerBonus += SKILL_TRIGGER_BONUS[entry.name] || 0;
+    }
+    const skillChance = ((sp.skillPercent || 0) / 100) * (1 + triggerBonus) * mods.skill;
+    return helpsPerHour * skillChance;
+  }
+
+  // Function-weighted skill value for team building, in real per-hour units:
+  // activations/hour (skillActivationRate) x the skill's curve-normalized
+  // per-activation value (scoreMainSkill) x how much that function matters for
+  // the dish-first goal. A skill that fires often on a fast, high-skillPercent
+  // mon now genuinely outranks the same skill on a slow, low-skillPercent one -
+  // previously this only compared curve position, so two mons with the identical
+  // main skill scored identically regardless of how often either actually fired.
   function cookingSkillScore(p) {
     const w = SKILL_FUNCTION_WEIGHTS[skillFunction(p.mainSkill)];
-    return Math.round(scoreMainSkill(p) * natureMods(p.nature).skill * w * 10) / 10;
+    return Math.round(skillActivationRate(p) * scoreMainSkill(p) * w * 10) / 10;
   }
 
   // ── Team Builder v2: ingredient production-rate model ──────────────────────
@@ -193,17 +230,27 @@
   // AND nature's speed effect are already baked in - do not reapply mods.speed here
   // (see natureMods' comment for why).
   // With no neededSet, rates ALL ingredient production (general throughput).
-  function ingredientRate(p, neededSet) {
+  //
+  // Chance a help proc is an INGREDIENT proc rather than a berry proc - the two are
+  // mutually exclusive per help (Neroli's Lab calculateIngredientPercentage): species
+  // base% x nature x (1 + Ingredient Finder subskill bonuses).
+  function ingredientChance(p) {
     const sp = GAME.species[p.species];
     if (!sp) return 0;
     const mods = natureMods(p.nature);
-    const helpsPerHour = 3600 / freqToSecs(p.frequency);
     let finderBonus = 0;
     for (const [slot, entry] of Object.entries(p.subskills || {})) {
       if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
       finderBonus += INGREDIENT_FINDER_BONUS[entry.name] || 0;
     }
-    const ingChance = ((sp.ingredientPercent || 0) / 100) * mods.ing * (1 + finderBonus);
+    return ((sp.ingredientPercent || 0) / 100) * mods.ing * (1 + finderBonus);
+  }
+
+  function ingredientRate(p, neededSet) {
+    const sp = GAME.species[p.species];
+    if (!sp) return 0;
+    const helpsPerHour = 3600 / freqToSecs(p.frequency);
+    const ingChance = ingredientChance(p);
     const slots = activeIngredientSlots(p);
     if (slots.length === 0) return 0;
     // Expected needed-units per ingredient proc: uniform slot pick, then uniform
@@ -249,6 +296,69 @@
 
   const EXPERT_BONUS_LABELS = { ingredient: "Ingredients", berry: "Berries", skill: "Skills" };
 
+  // ── Team Builder v3: Helper Boost team synergy ──────────────────────────────
+  // Raikou/Entei/Suicune's shared main skill: each activation instantly grants
+  // the whole team a burst of free helps, scaling with the skill level AND how
+  // many OTHER team members share the carrier's type (Electric/Fire/Water
+  // respectively - any Pokemon of that type counts, not just legendaries).
+  // Table sourced from Serebii's Helper Boost page - indexed [skillLevel][matchCount-1].
+  const HELPER_BOOST_SKILL_NAME = "Helper Boost";
+  const HELPER_BOOST_TABLE = {
+    1: [2, 2, 3, 4, 6],
+    2: [3, 3, 4, 5, 7],
+    3: [3, 3, 5, 6, 8],
+    4: [4, 4, 6, 7, 9],
+    5: [4, 5, 7, 8, 10],
+    6: [5, 6, 8, 9, 11],
+  };
+  function helperBoostHelpsPerActivation(carrier, team) {
+    const carrierType = GAME.species[carrier.species]?.type;
+    const matchCount = team.filter(m => GAME.species[m.species]?.type === carrierType).length;
+    const lvl = Math.min(6, Math.max(1, carrier.mainSkillLevel || 1));
+    const idx = Math.min(5, Math.max(1, matchCount)) - 1;
+    return { carrierType, matchCount, helpsPerActivation: HELPER_BOOST_TABLE[lvl][idx] };
+  }
+
+  // ── Team Builder v2: berry production-rate model ────────────────────────────
+  // Berry Finding S: flat +1 berry per help (Neroli's Lab subskills.ts
+  // BERRY_FINDING_S.amount), on top of the specialty-driven base count.
+  const BERRY_FINDING_S_BONUS = 1;
+
+  // Berries per help proc: Berries/All specialties find 2, everyone else finds 1
+  // (Neroli's Lab calculateNrOfBerriesPerDrop), +1 more with Berry Finding S.
+  function berriesPerDrop(p) {
+    let n = (p.specialty === "Berries" || p.specialty === "All") ? 2 : 1;
+    for (const [slot, entry] of Object.entries(p.subskills || {})) {
+      if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
+      if (entry.name === "Berry Finding S") n += BERRY_FINDING_S_BONUS;
+    }
+    return n;
+  }
+
+  // A single berry's Snorlax-strength value at a given helper level. Berries do
+  // NOT have a fixed value - they scale with the producing Pokemon's level via
+  // whichever is larger of a linear or a compounding curve (Neroli's Lab
+  // rp-utils/rp.ts berryFactor - not guessed, this is the exact in-game formula).
+  function berryValueAtLevel(baseValue, level) {
+    const lvl = parseInt(level) || 1;
+    return Math.max(baseValue + lvl - 1, Math.round(Math.pow(1.025, lvl - 1) * baseValue));
+  }
+
+  // Real Snorlax-strength units/hour this pokemon contributes via its OWN berry
+  // (favorite-berry doubling is layered on top by the caller, since "favorite"
+  // depends on the island/week, not the pokemon). A help proc is either an
+  // ingredient proc or a berry proc, never both (see ingredientChance) - so berry
+  // throughput scales with (1 - ingredientChance), not with helpsPerHour alone.
+  function berryRate(p) {
+    const sp = GAME.species[p.species];
+    const berryData = GAME?.berries?.find(b => b.name === p.berry);
+    if (!sp || !berryData) return 0;
+    const helpsPerHour = 3600 / freqToSecs(p.frequency);
+    const berryChance = 1 - ingredientChance(p);
+    const value = berryValueAtLevel(berryData.value, p.level) * berriesPerDrop(p);
+    return Math.round(helpsPerHour * berryChance * value * 100) / 100;
+  }
+
   // ── Team Builder v2 (see docs/ROADMAP.md #2, agreed 2026-07-08) ─────────────
   // No reserved specialty slots. Each candidate is scored on four weighted axes
   // (dish production > cooking-support skills > berry match > meta tier, plus a
@@ -257,12 +367,22 @@
   // demand, so a redundant producer of already-covered ingredients loses value and
   // coverage wins. Any specialty can take any seat.
   //
-  // All tuning lives here. Axis raw ranges differ (dish ~0-2.5 units/hr, skills
-  // ~0-10, berry ~0-8, base ~0-45, meta 0-4), so the weights both scale and rank:
+  // All tuning lives here. Axis raw ranges differ (dish ~0-2.5 units/hr; skills
+  // ~0-2 real activations/hr x curve value x function weight - skills fire rarely,
+  // most mons sit under 0.5; berry ~35-270 real Snorlax-strength units/hr, up to
+  // ~540 for a maxed favorite-berry specialist; base ~0-45; meta 0-4), so the
+  // weights both scale and rank:
   const TEAM_AXIS_WEIGHTS = {
-    dish:  12,    // units/hr of needed ingredients (marginal vs remaining demand)
-    skills: 0.8,  // function-weighted main-skill value (cookingSkillScore)
-    berry:  0.5,  // island/expert berry synergy
+    dish:   12,   // units/hr of needed ingredients (marginal vs remaining demand)
+    skills: 8,    // function-weighted activations/hr x per-activation value (cookingSkillScore)
+    // Berry axis gets two weights, not one: berry strength/hour is now real Snorlax-
+    // strength units (35-540), which would swamp every other axis at a single
+    // "tiebreak-sized" weight. When a recipe is selected, dish-first stays the
+    // agreed priority (docs/ROADMAP.md #2) and berries are a minor nudge; with no
+    // recipe selected (general roster building, or a berry-focused week), berries
+    // are the point and get to actually dominate. See axisBreakdown for the switch.
+    berryWhenDish:   0.03,
+    berryWhenNoDish: 0.15,
     base:   0.15, // general quality floor: subskills + helps/hr keep seats sane when other axes tie
     meta:   0.4,  // community tier (GAME.metaTiers, optional) - light tiebreak only
   };
@@ -280,14 +400,8 @@
   function ingredientRatesByName(p) {
     const sp = GAME.species[p.species];
     if (!sp) return {};
-    const mods = natureMods(p.nature);
     const helpsPerHour = 3600 / freqToSecs(p.frequency);
-    let finderBonus = 0;
-    for (const [slot, entry] of Object.entries(p.subskills || {})) {
-      if (!entry || !entry.name || isSubskillLocked(p.level, parseInt(slot))) continue;
-      finderBonus += INGREDIENT_FINDER_BONUS[entry.name] || 0;
-    }
-    const ingChance = ((sp.ingredientPercent || 0) / 100) * mods.ing * (1 + finderBonus);
+    const ingChance = ingredientChance(p);
     const slots = activeIngredientSlots(p);
     const rates = {};
     for (const slot of slots) {
@@ -323,20 +437,33 @@
       return tier === "main" ? 1/0.9 : tier === "sub" ? 1 : 1/1.15;
     }
 
+    // Fixed-berry islands (Cyan Beach, Taupe Hollow, etc.) never rotate their 3-berry
+    // list - that list IS the standing favorite set (community-confirmed: only
+    // Greengrass draws a genuinely new favorite set each week), so any accepted berry
+    // there gets the same universal favorite-berry doubling Greengrass/Expert give.
+    const isFixedFavoriteIsland = !acceptsAll && !island.weeklyBerries;
+
+    // Real Snorlax-strength units/hour from this pokemon's own berry. The universal
+    // "favorite berry doubles its value" rule (community-confirmed) applies to EVERY
+    // favorite tier alike - main, sub, fixed-island, or weekly-drawn - so main/sub
+    // are differentiated only by expertFreqMult (frequency) and the bonus-specialty
+    // nudge below, not by value.
     function berryAxis(p) {
       if (isExpert) {
         const tier = expertBerryTier(p, expertSettings);
-        let v = tier === "main" ? 8 : tier === "sub" ? 4 : 0;
-        if (tier !== "none" && expertSettings.randomBonus === p.specialty.toLowerCase().replace(/s$/, "")) {
-          v += 6; // this week's bonus specialty rewards favored-berry members of that specialty
-        }
-        if (tier === "main") v += 2; // main favorite also gets skill level +1 in-game
-        return v;
+        if (tier === "none") return 0;
+        let rate = berryRate(p) * expertFreqMult(p) * 2;
+        // This week's random bonus category rewards favored-berry members of that
+        // specialty further. The community hasn't published the exact magnitude for
+        // this bonus, so this multiplier is an estimate (unlike the rest of this
+        // axis, which is sourced) - light nudge only, not load-bearing.
+        if (expertSettings.randomBonus === p.specialty.toLowerCase().replace(/s$/, "")) rate *= 1.25;
+        return rate;
       }
       if (!berryMatch(p)) return 0;
-      const base = p.specialty === "Berries" ? 8 : 3;
-      if (isWeeklyFavorite && expertSettings.favoriteBerries.includes(p.berry)) return base * 2;
-      return base;
+      const rate = berryRate(p);
+      const weeklyFavoriteMatch = isWeeklyFavorite && expertSettings.favoriteBerries.includes(p.berry);
+      return (isFixedFavoriteIsland || weeklyFavoriteMatch) ? rate * 2 : rate;
     }
 
     function metaAxis(p) {
@@ -388,7 +515,7 @@
       const rates = ratesById.get(p.id);
       const dish = dishAxis(p, rates) * TEAM_AXIS_WEIGHTS.dish;
       const skills = skillsAxis(p) * TEAM_AXIS_WEIGHTS.skills;
-      const berry = berryAxis(p) * TEAM_AXIS_WEIGHTS.berry;
+      const berry = berryAxis(p) * (recipe ? TEAM_AXIS_WEIGHTS.berryWhenDish : TEAM_AXIS_WEIGHTS.berryWhenNoDish);
       const base = baseAxis(p) * TEAM_AXIS_WEIGHTS.base;
       const meta = metaAxis(p) * TEAM_AXIS_WEIGHTS.meta;
       return { dish, skills, berry, base, meta, total: dish + skills + berry + base + meta, rates };
@@ -448,6 +575,136 @@
       skillFnCounts[fn] = (skillFnCounts[fn] || 0) + 1;
     }
 
+    // ── Team Builder v3: Helper Boost synergy bonus + swap-improvement pass ────
+    // Helper Boost's value depends on OTHER teammates' types, which the greedy
+    // loop above can't see while picking (it only knows what's already been
+    // picked, not what comes after). A bounded local search fixes this: it
+    // re-evaluates whole 5-member sets (reusing the exact same dish/skills/berry
+    // math, just replayed against a fresh local demand/decay state instead of
+    // the greedy loop's live one) and keeps any single-seat swap that raises the
+    // team's total. This is the only place synergy actually influences WHICH
+    // Pokemon get picked - Bad Dreams/Lunar Blessing/Helping Bonus are surfaced
+    // as strategy tips instead (see below), not scored, since their real-game
+    // magnitude needs an energy model this codebase doesn't have yet.
+    //
+    // The extra helps/hour Helper Boost grants are distributed evenly across the
+    // team (the game doesn't publish which teammate "gets" which help, so this
+    // is a documented assumption) and converted into each member's own
+    // dish/skills/berry axis scale by growing it in proportion to how much that
+    // member's OWN helps/hour would increase - this avoids inventing a
+    // cross-unit conversion constant between "extra helps" and axis points.
+    function helperBoostAxisBonus(members) {
+      const carriers = members.filter(p => p.mainSkill === HELPER_BOOST_SKILL_NAME);
+      if (carriers.length === 0) return 0;
+      let totalExtraHelpsPerHour = 0;
+      for (const carrier of carriers) {
+        const { helpsPerActivation } = helperBoostHelpsPerActivation(carrier, members);
+        totalExtraHelpsPerHour += skillActivationRate(carrier) * helpsPerActivation;
+      }
+      if (totalExtraHelpsPerHour <= 0) return 0;
+      const perMemberExtra = totalExtraHelpsPerHour / members.length;
+      let bonus = 0;
+      for (const p of members) {
+        const ownHelpsPerHour = 3600 / freqToSecs(p.frequency);
+        if (ownHelpsPerHour <= 0) continue;
+        const growthRatio = perMemberExtra / ownHelpsPerHour;
+        const genericDish = (recipe ? ingredientRate(p, requiredIngredients) : ingredientRate(p)) * expertFreqMult(p) * TEAM_AXIS_WEIGHTS.dish * 0.5;
+        const genericBerry = berryAxis(p) * (recipe ? TEAM_AXIS_WEIGHTS.berryWhenDish : TEAM_AXIS_WEIGHTS.berryWhenNoDish);
+        const genericSkills = cookingSkillScore(p) * TEAM_AXIS_WEIGHTS.skills;
+        bonus += (genericDish + genericBerry + genericSkills) * growthRatio;
+      }
+      return bonus;
+    }
+
+    // Evaluates an arbitrary 5-member set from scratch (its own local demand/
+    // decay state - never touches the greedy loop's live remainingDemand/
+    // skillFnCounts) so candidate swaps can be compared on equal footing.
+    function evaluateTeamSet(members) {
+      const localDemand = {};
+      if (recipe) recipe.ingredients.forEach(i => { localDemand[i.ingredient] = originalDemand[i.ingredient]; });
+      const localSkillFnCounts = {};
+      let total = 0;
+      for (const p of members) {
+        const rates = ratesById.get(p.id);
+        let dish;
+        if (!recipe) {
+          dish = ingredientRate(p) * expertFreqMult(p) * 0.5;
+        } else {
+          let v = 0;
+          for (const [ing, rate] of Object.entries(rates)) {
+            if (!(ing in localDemand)) continue;
+            v += rate * (localDemand[ing] / originalDemand[ing]);
+          }
+          dish = v * expertFreqMult(p);
+        }
+        const fn = skillFunction(p.mainSkill);
+        const decay = Math.pow(SKILL_STACK_DECAY, localSkillFnCounts[fn] || 0);
+        const skills = cookingSkillScore(p) * decay;
+        const berry = berryAxis(p) * (recipe ? TEAM_AXIS_WEIGHTS.berryWhenDish : TEAM_AXIS_WEIGHTS.berryWhenNoDish);
+        const base = baseAxis(p) * TEAM_AXIS_WEIGHTS.base;
+        const meta = metaAxis(p) * TEAM_AXIS_WEIGHTS.meta;
+        total += dish * TEAM_AXIS_WEIGHTS.dish + skills * TEAM_AXIS_WEIGHTS.skills + berry + base + meta;
+        if (recipe) {
+          for (const [ing, rate] of Object.entries(rates)) {
+            if (ing in localDemand) localDemand[ing] = Math.max(0, localDemand[ing] - rate * expertFreqMult(p) * DEMAND_WINDOW_HOURS);
+          }
+        }
+        localSkillFnCounts[fn] = (localSkillFnCounts[fn] || 0) + 1;
+      }
+      return total + helperBoostAxisBonus(members);
+    }
+
+    // The swap pass only exists to find Helper Boost synergy the greedy loop
+    // can't see - skip it entirely when nothing on the roster even has the
+    // skill (the common case). On a 150+ roster this pass is O(passes x 5 x
+    // roster) team evaluations; bestAchievableDish calls buildTeam once per
+    // recipe, so this guard keeps that responsive for the far more common
+    // no-legendary roster.
+    const MAX_SWAP_PASSES = 2;
+    const SWAP_IMPROVEMENT_EPSILON = 0.01;
+    const hasHelperBoostCandidate = roster.some(p => p.mainSkill === HELPER_BOOST_SKILL_NAME);
+    let currentTotal = evaluateTeamSet(team);
+    for (let pass = 0; hasHelperBoostCandidate && pass < MAX_SWAP_PASSES; pass++) {
+      let improved = false;
+      for (let i = 0; i < team.length; i++) {
+        const incumbentId = team[i].id;
+        let bestCandidate = null, bestTotal = currentTotal;
+        for (const p of roster) {
+          if (p.id === incumbentId || used.has(p.id)) continue;
+          const trial = team.slice();
+          trial[i] = p;
+          const trialTotal = evaluateTeamSet(trial);
+          if (trialTotal > bestTotal + SWAP_IMPROVEMENT_EPSILON) { bestTotal = trialTotal; bestCandidate = p; }
+        }
+        if (bestCandidate) {
+          used.delete(incumbentId);
+          used.add(bestCandidate.id);
+          team[i] = bestCandidate;
+          currentTotal = bestTotal;
+          improved = true;
+        }
+      }
+      if (!improved) break;
+    }
+
+    // Recompute role/reason labels and replay remainingDemand/skillFnCounts for
+    // the FINAL (possibly swapped) team, in final order - a swap can move which
+    // member "owns" a given marginal-dish contribution.
+    Object.keys(remainingDemand).forEach(ing => { remainingDemand[ing] = originalDemand[ing]; });
+    Object.keys(skillFnCounts).forEach(k => delete skillFnCounts[k]);
+    for (let i = 0; i < team.length; i++) {
+      const p = team[i];
+      const b = axisBreakdown(p);
+      team[i] = { ...p, role: roleFor(p, b), pickReason: reasonFor(p, b) };
+      if (recipe) {
+        for (const [ing, rate] of Object.entries(b.rates)) {
+          if (ing in remainingDemand) remainingDemand[ing] = Math.max(0, remainingDemand[ing] - rate * expertFreqMult(p) * DEMAND_WINDOW_HOURS);
+        }
+      }
+      const fn = skillFunction(p.mainSkill);
+      skillFnCounts[fn] = (skillFnCounts[fn] || 0) + 1;
+    }
+
     // Analysis
     const specialties = team.reduce((acc,p) => { acc[p.specialty]=(acc[p.specialty]||0)+1; return acc; }, {});
     const warnings = [];
@@ -457,6 +714,38 @@
     // its own output. Flag it rather than model it.
     const hasSustain = team.some(p => skillFunction(p.mainSkill) === "sustain");
     if (!hasSustain) warnings.push("No energy-recovery skill on the team — real production will run below these estimates as energy drains");
+
+    // ── Legendary/team-synergy strategy tips ────────────────────────────────
+    // Distinct from `warnings` (things actively hurting the estimate): these
+    // surface team-composition context the score can't fully express. Only
+    // Helper Boost is quantified (sourced HELPER_BOOST_TABLE, and it already
+    // shaped which Pokemon got picked above) - Bad Dreams' energy drain and
+    // Lunar Blessing's berry/energy bonus are flagged qualitatively, not
+    // scored, since neither has a sourced formula in this model yet (needs the
+    // energy model - audit item B in docs/AUDIT_TEAM_BUILDER_2026-07-17.md).
+    const tips = [];
+    team.filter(p => p.mainSkill === HELPER_BOOST_SKILL_NAME).forEach(carrier => {
+      const { carrierType, matchCount, helpsPerActivation } = helperBoostHelpsPerActivation(carrier, team);
+      const nextTier = matchCount < 5 ? HELPER_BOOST_TABLE[Math.min(6, Math.max(1, carrier.mainSkillLevel || 1))][matchCount] : null;
+      let tip = `${carrier.name || carrier.species}'s Helper Boost has ${matchCount} ${carrierType}-type teammate${matchCount === 1 ? "" : "s"} on this team, granting ~${helpsPerActivation} free helps per activation.`;
+      if (nextTier) tip += ` One more ${carrierType}-type teammate would raise that to ~${nextTier}.`;
+      tips.push(tip);
+    });
+    const badDreamsCarrier = team.find(p => p.mainSkill === "Bad Dreams (Charge Strength M)");
+    if (badDreamsCarrier) {
+      const nonDarkCount = team.filter(p => p.id !== badDreamsCarrier.id && GAME.species[p.species]?.type !== "Dark").length;
+      if (nonDarkCount > 0) {
+        tips.push(`${badDreamsCarrier.name || badDreamsCarrier.species}'s Bad Dreams drains 12 energy from each of its ${nonDarkCount} non-Dark teammate${nonDarkCount === 1 ? "" : "s"} every activation - their real output will run below these estimates as they tire faster (not quantified here - no energy model yet).`);
+      }
+    }
+    const lunarCarrier = team.find(p => p.mainSkill === "Lunar Blessing (Energy For Everyone S)");
+    if (lunarCarrier) {
+      tips.push(`${lunarCarrier.name || lunarCarrier.species}'s Lunar Blessing keeps the whole team's energy topped up and skims bonus berries from teammates' finds - pairs well with fast producers that have no sustain skill of their own.`);
+    }
+    const helpingBonusHolders = team.filter(p => hasUnlockedSubskill(p, "Helping Bonus"));
+    if (helpingBonusHolders.length > 0) {
+      tips.push(`${helpingBonusHolders.length} team member${helpingBonusHolders.length === 1 ? " has" : "s have"} Helping Bonus, shaving ~5% off the whole team's helping frequency each (stacks, inside each member's own 35% subskill speed cap) - a free tempo boost on top of these estimates.`);
+    }
 
     let matches, mainMatches, subMatches, favoriteMatches;
     if (isExpert) {
@@ -498,7 +787,7 @@
       }
     }
 
-    return { team, specialties, matches, mainMatches, subMatches, favoriteMatches, isExpert, isWeeklyFavorite, expertSettings, warnings, recipe, missingIngredients, coveragePct };
+    return { team, specialties, matches, mainMatches, subMatches, favoriteMatches, isExpert, isWeeklyFavorite, expertSettings, warnings, tips, recipe, missingIngredients, coveragePct };
   }
 
   // Best-achievable-dish: instead of the player guessing which dish to select,
@@ -522,9 +811,11 @@
   return {
     setGame, getGame,
     TIER_SCORES, SLOT_WEIGHTS, SLOT_LEVELS,
-    getTier, isSubskillLocked, scoreSubskills, freqToSecs, scoreMainSkill, natureMods, totalScore,
-    SKILL_FUNCTIONS, SKILL_FUNCTION_WEIGHTS, skillFunction, cookingSkillScore,
-    INGREDIENT_FINDER_BONUS, activeIngredientSlots, ingredientRate, ingredientRatesByName,
+    getTier, isSubskillLocked, hasUnlockedSubskill, scoreSubskills, freqToSecs, scoreMainSkill, natureMods, totalScore,
+    SKILL_FUNCTIONS, SKILL_FUNCTION_WEIGHTS, skillFunction, SKILL_TRIGGER_BONUS, skillActivationRate, cookingSkillScore,
+    INGREDIENT_FINDER_BONUS, activeIngredientSlots, ingredientChance, ingredientRate, ingredientRatesByName,
+    BERRY_FINDING_S_BONUS, berriesPerDrop, berryValueAtLevel, berryRate,
+    HELPER_BOOST_SKILL_NAME, HELPER_BOOST_TABLE,
     individualIngredientPool, expertBerryTier, buildTeam, bestAchievableDish, EXPERT_BONUS_LABELS,
   };
 });

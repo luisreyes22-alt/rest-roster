@@ -244,3 +244,84 @@ bubblewrap build   # produces signed .aab/.apk + keystore
   berry/skill axes, energy modeling, team-level legendary synergies like
   Helper Boost/Bad Dreams, greedy+swap search) are tracked in the audit doc,
   not yet started.
+- 2026-07-17: Team Builder audit phase 2 landed - berry and skill axes now
+  score in real per-hour units instead of arbitrary points, sourced from
+  Neroli's Lab (common/src/utils/rp-utils/rp.ts berryFactor/skillFactor,
+  common/src/utils/stat-utils/stat-utils.ts
+  calculateNrOfBerriesPerDrop/calculateSkillPercentage - not guessed).
+  `berryRate(p)`: berries/help now depends on specialty (Berries/All find 2,
+  others 1) plus Berry Finding S (+1), berry value now scales with the
+  PRODUCING pokemon's level via the game's actual max(linear, compounding)
+  curve (previously assumed flat per-berry value - level scaling was a real
+  gap, not the guess the original audit worried about), and a help proc is
+  either an ingredient proc or a berry proc, never both, so berry throughput
+  scales with `(1 - ingredientChance)`. `skillActivationRate(p)`: activations/
+  hour from species `skillPercent` x nature x Skill Trigger S/M subskills
+  (+18%/+36%, additive, same shape as Ingredient Finder) - `cookingSkillScore`
+  now multiplies this real activation rate into the curve-value x
+  function-weight score instead of only ranking by curve position, so two
+  mons with the same main skill no longer score identically regardless of how
+  often either actually fires. Also discovered while reading Neroli's Lab
+  source: favorite-berry doubling isn't Greengrass/Expert-only - a FIXED
+  island's 3-berry list is itself a standing favorite set (only Greengrass
+  redraws weekly), so `buildTeam`'s berry axis now doubles for any accepted
+  berry on a fixed island too, not just Greengrass/Expert matches.
+  Real berry units (35-540/hr) dwarf the old arbitrary point scale, which
+  would have let a strength-focused berry build always outrank real dish
+  contributors even mid-recipe - `TEAM_AXIS_WEIGHTS.berry` was split into
+  `berryWhenDish` (0.03, a light nudge, preserving the agreed dish-first
+  priority from #2 above) and `berryWhenNoDish` (0.15, lets berries actually
+  dominate a general/strength-focused build with no recipe selected).
+  `skills` weight raised 0.8 -> 8 to match the new real activation-rate-scaled
+  range (skills fire rarely - most mons sit under ~0.5 raw, ceiling ~2 for a
+  maxed high-skillPercent specialist). The Expert Mode "random bonus
+  category" multiplier (1.25x) remains an unsourced estimate - community
+  material doesn't publish its exact magnitude; flagged in both the code
+  comment and the audit doc as not to the same sourcing standard as the rest
+  of this axis. Added regression tests for berry value level-scaling,
+  berries-per-drop by specialty/Berry Finding S, Skill Trigger M/nature
+  raising activation rate, and fixed-island favorite-berry doubling. All 23
+  formula tests pass. Energy modeling (audit finding B) and team-level
+  legendary synergies (finding F) remain unstarted.
+- 2026-07-17: Team Builder audit phase 3 landed - Helper Boost
+  (Raikou/Entei/Suicune) team synergy now actually influences which Pokemon
+  `buildTeam` picks, not just a post-hoc note. The greedy loop is
+  forward-only and can't see that a candidate's Helper Boost value depends on
+  teammates picked AFTER it, so a bounded local-search pass runs once the
+  greedy team is built: it re-evaluates whole 5-member sets (reusing the
+  exact same dish/skills/berry math against a fresh local demand/decay state,
+  see `evaluateTeamSet`) and swaps in a bench candidate whenever it raises the
+  team's total, capped at 2 passes. `HELPER_BOOST_TABLE` (Serebii-sourced,
+  helps-per-activation by skill level x same-type teammate count) drives
+  `helperBoostAxisBonus`, which distributes the extra helps/hour evenly
+  across the team (undocumented in-game which teammate "gets" a given help,
+  so this is a stated assumption) and folds them into each member's own
+  dish/skills/berry axis value in proportion to how much their OWN helps/hour
+  would grow - deliberately avoids inventing a cross-unit "helps to axis
+  points" conversion constant. Verified with a controlled test: holding a
+  candidate's own stats completely constant, it loses its seat to a
+  type-matching alternative only when Helper Boost is active on the carrier,
+  proving the swap is driven by the synergy and not incidental stat
+  differences. Guarded behind `roster.some(mainSkill === "Helper Boost")` so
+  rosters without a Helper Boost carrier (the common case) skip the expensive
+  pass entirely - cut `bestAchievableDish` on a 154-mon test roster (Luis's
+  real roster, which has 3 Entei/2 Suicune/1 Raikou/2 Cresselia/1 Darkrai)
+  from ~1.7s to ~250ms for non-legendary rosters, ~1.6s when Helper Boost is
+  present (76 recipes each).
+  Bad Dreams (Darkrai) and Lunar Blessing (Cresselia) are surfaced as
+  qualitative `result.tips` strings instead of scored - both need an energy
+  model (audit finding B) to quantify honestly, which this codebase doesn't
+  have yet, and this project's standing rule is real formulas, not guessed
+  magnitudes. Helping Bonus subskill (-5% team frequency per holder, sourced
+  exactly from Neroli's Lab) also gets a qualitative tip rather than a scored
+  axis change, since its interaction with each holder's own 35% subskill
+  speed cap would need decomposing their displayed frequency back into
+  base/nature/subskill components to model precisely - deferred, not guessed.
+  New `result.tips` array rendered in TeamView (app.jsx) alongside the
+  existing `warnings` block, visually distinct (info-blue vs warning-amber).
+  Added 6 regression tests (Helper Boost table lookup, the controlled
+  stat-held-constant swap test, tip generation for Helper Boost/Bad
+  Dreams/Lunar Blessing/Helping Bonus, subskill-lock gating). All 29 formula
+  tests pass. Energy modeling (B) remains the one unstarted audit item;
+  Bad Dreams/Lunar Blessing/Helping Bonus quantification is now explicitly
+  blocked on it rather than silently missing.

@@ -1640,6 +1640,21 @@ function TeamView({roster, onGoAdd}) {
             </div>
           )}
 
+          {/* Strategy tips - team-synergy context (Helper Boost, Bad Dreams, Lunar
+              Blessing, Helping Bonus) the raw score can't fully express. Distinct
+              from warnings: these aren't problems, just useful context. */}
+          {result.tips?.length > 0 && (
+            <div style={{background:"var(--info-bg)",border:"1px solid var(--info)",
+              borderRadius:"var(--radius-control)",padding:"12px 14px",marginBottom:16}}>
+              {result.tips.map((t,i) => (
+                <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:11,color:"var(--info)",lineHeight:1.7,fontFamily:"'JetBrains Mono', monospace",
+                  marginBottom:i<result.tips.length-1?6:0}}>
+                  <Icon name="lightbulb" size={13} style={{marginTop:2,flexShrink:0}}/> {t}
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Team members - collapsed so all 5 fit on one screen; tap to expand details */}
           <div style={{fontSize:10,color:"var(--text-secondary)",fontFamily:"'JetBrains Mono', monospace",marginBottom:8,
             letterSpacing:"0.05em"}}>YOUR TEAM · TAP TO SEE DETAILS</div>

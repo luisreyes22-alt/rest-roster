@@ -135,8 +135,12 @@ const nonExpertIsland = Object.keys(GAME.islands).find(i => !GAME.islands[i].exp
   || Object.keys(GAME.islands).find(i => !GAME.islands[i].expert);
 
 test("cooking-function weighting inverts the raw curve ranking: Ingredient Magnet beats Charge Strength at max level", () => {
-  const magnet = { mainSkill: "Ingredient Magnet S", mainSkillLevel: 7, nature: "Hardy" };
-  const strength = { mainSkill: "Charge Strength M", mainSkillLevel: 7, nature: "Hardy" };
+  // cookingSkillScore now factors in real activations/hour (species skillPercent x
+  // nature x trigger subskills), so both mons need real species data - the same
+  // species for both, so only the assigned skill/level differs.
+  const species = pickSpecies(() => true);
+  const magnet = mon({ id: "magnet", species, mainSkill: "Ingredient Magnet S", mainSkillLevel: 7, nature: "Hardy" });
+  const strength = mon({ id: "strength", species, mainSkill: "Charge Strength M", mainSkillLevel: 7, nature: "Hardy" });
   assert.ok(Formulas.scoreMainSkill(strength) > Formulas.scoreMainSkill(magnet),
     "sanity: raw curve score still favors Charge Strength (steeper curve)");
   assert.ok(Formulas.cookingSkillScore(magnet) > Formulas.cookingSkillScore(strength),
@@ -293,6 +297,143 @@ test("helps/hour is read directly from frequency and does not reapply nature's s
   const rateNeutral = Formulas.ingredientRate(neutralNatureMon);
   assert.equal(rateFast, rateNeutral,
     "identical frequency must produce identical throughput regardless of nature - nature is already baked into the stored frequency");
+});
+
+// ── Real-unit berry/skill axes (Team Builder audit phase 2) ────────────────────
+// The berry and skill axes used to be arbitrary points (8/3, curve position only).
+// Both are now real per-hour units sourced from Neroli's Lab
+// (common/src/utils/rp-utils/rp.ts berryFactor/skillFactor, common/src/utils/
+// stat-utils/stat-utils.ts calculateNrOfBerriesPerDrop/calculateSkillPercentage) so
+// a maxed favorite-berry specialist or a fast high-skillPercent mon actually scores
+// higher than a token match, instead of every match in a tier scoring identically.
+
+test("berryValueAtLevel matches the documented formula: max of linear and compounding growth", () => {
+  assert.equal(Formulas.berryValueAtLevel(30, 1), 30, "level 1 has no growth yet");
+  const lvl60Linear = 30 + 60 - 1;
+  const lvl60Compound = Math.round(Math.pow(1.025, 59) * 30);
+  assert.equal(Formulas.berryValueAtLevel(30, 60), Math.max(lvl60Linear, lvl60Compound));
+  assert.ok(Formulas.berryValueAtLevel(30, 60) > Formulas.berryValueAtLevel(30, 10),
+    "berry value must grow with the producing pokemon's level");
+});
+
+test("berriesPerDrop: Berries/All specialty finds 2, others find 1, Berry Finding S adds 1 more", () => {
+  assert.equal(Formulas.berriesPerDrop({ specialty: "Berries", level: 60, subskills: {} }), 2);
+  assert.equal(Formulas.berriesPerDrop({ specialty: "All", level: 60, subskills: {} }), 2);
+  assert.equal(Formulas.berriesPerDrop({ specialty: "Ingredients", level: 60, subskills: {} }), 1);
+  assert.equal(Formulas.berriesPerDrop({ specialty: "Skills", level: 60, subskills: {} }), 1);
+  assert.equal(Formulas.berriesPerDrop({ specialty: "Ingredients", level: 60, subskills: { 10: { name: "Berry Finding S" } } }), 2);
+  // Locked slot (below its level) must not grant the bonus yet.
+  assert.equal(Formulas.berriesPerDrop({ specialty: "Ingredients", level: 5, subskills: { 10: { name: "Berry Finding S" } } }), 1);
+});
+
+test("berryRate: a Berries specialist outproduces an otherwise-identical non-specialist on the same species/level", () => {
+  const species = pickSpecies(() => true);
+  const specialist = mon({ id: "spec", species, specialty: "Berries", frequency: "30 mins 0 secs" });
+  const nonSpecialist = mon({ id: "non", species, specialty: "Ingredients", frequency: "30 mins 0 secs" });
+  assert.ok(Formulas.berryRate(specialist) > Formulas.berryRate(nonSpecialist),
+    "Berries specialty finds 2 berries/help vs 1, so its berry strength/hour must be higher");
+});
+
+test("skillActivationRate: Skill Trigger M subskill and a skill-chance nature both raise activations/hour", () => {
+  const species = pickSpecies(() => true);
+  const base = mon({ id: "base", species, nature: "Hardy", subskills: {} });
+  const withTrigger = mon({ id: "trig", species, nature: "Hardy", subskills: { 10: { name: "Skill Trigger M" } } });
+  const skillBuffNature = Object.keys(GAME.natures).find(n => GAME.natures[n].buff === "Main skill chance");
+  const withNature = mon({ id: "nat", species, nature: skillBuffNature, subskills: {} });
+
+  assert.ok(Formulas.skillActivationRate(withTrigger) > Formulas.skillActivationRate(base),
+    "Skill Trigger M must raise expected activations/hour");
+  assert.ok(Formulas.skillActivationRate(withNature) > Formulas.skillActivationRate(base),
+    "a main-skill-chance nature must raise expected activations/hour");
+});
+
+test("buildTeam: fixed-berry islands treat their whole berry list as a standing favorite, not a flat match", () => {
+  // A full 5-seat roster of non-matching-berry fillers, then one otherwise-identical
+  // challenger carrying a berry the island actually accepts - the challenger's berry
+  // axis is real, non-zero units (vs the fillers' 0, since acceptsAll is false), so
+  // it must bump a filler out even though every other axis ties.
+  const fixedIsland = Object.keys(GAME.islands).find(i => !GAME.islands[i].expert && !GAME.islands[i].weeklyBerries && !GAME.islands[i].berries.includes("all"));
+  assert.ok(fixedIsland, "expected at least one fixed-berry-list island in gameData");
+  const islandBerry = GAME.islands[fixedIsland].berries[0];
+  const species = pickSpecies(() => true);
+
+  const filler = [0, 1, 2, 3, 4].map(i => mon({ id: `filler${i}`, species, berry: "Not A Real Berry", level: 30 }));
+  const challenger = mon({ id: "challenger", species, berry: islandBerry, level: 30 });
+  const result = Formulas.buildTeam([...filler, challenger], fixedIsland, null, null);
+  assert.ok(result.team.some(p => p.id === "challenger"),
+    "the fixed-island-berry mon must displace a non-matching filler when every other axis is tied");
+});
+
+// ── Team Builder audit phase 3: Helper Boost synergy + strategy tips ───────────
+// Raikou/Entei/Suicune's Helper Boost grants the whole team free helps, scaling
+// with how many teammates share the carrier's type (Serebii-sourced table). The
+// greedy loop alone can't see this (it can't know who gets picked AFTER a given
+// candidate), so buildTeam runs a bounded swap-improvement pass afterward that
+// can and should change which Pokemon make the team.
+
+test("HELPER_BOOST_TABLE matches the sourced Serebii table at its known reference points", () => {
+  assert.equal(Formulas.HELPER_BOOST_TABLE[1][0], 2, "level 1, 1 match");
+  assert.equal(Formulas.HELPER_BOOST_TABLE[6][4], 11, "level 6, 5 matches - the documented ceiling");
+  assert.equal(Formulas.HELPER_BOOST_TABLE[3][2], 5, "level 3, 3 matches");
+});
+
+test("buildTeam's swap pass lets Helper Boost synergy change team membership, holding every candidate's own stats constant", () => {
+  // normal1 (Persian, Ingredient Magnet S Lv.1) is identical in both runs - only
+  // raikou's own skill differs between them (Helper Boost vs a throwaway neutral
+  // skill). If normal1's presence on the team flips between runs, that's the
+  // swap phase's Helper Boost bonus at work, not a difference in normal1 itself.
+  const island = Object.keys(GAME.islands).find(i => !GAME.islands[i].expert && GAME.islands[i].berries.includes("all"));
+  const electric2 = mon({ id: "electric2", species: "Luxray" });
+  const normal1 = mon({ id: "normal1", species: "Persian", mainSkill: "Ingredient Magnet S", mainSkillLevel: 1 });
+  const filler = [0, 1, 2].map(i => mon({ id: `f${i}`, species: "Bagon", mainSkill: "Charge Strength S", mainSkillLevel: 1 }));
+
+  const raikouWithHelperBoost = mon({ id: "raikou", species: "Raikou", mainSkillLevel: 6 });
+  const withHB = Formulas.buildTeam([raikouWithHelperBoost, electric2, normal1, ...filler], island, null, null);
+
+  const raikouWithoutHelperBoost = mon({ id: "raikou", species: "Raikou", mainSkill: "Dream Shard Magnet S", mainSkillLevel: 1 });
+  const withoutHB = Formulas.buildTeam([raikouWithoutHelperBoost, electric2, normal1, ...filler], island, null, null);
+
+  assert.ok(withoutHB.team.some(p => p.id === "normal1"),
+    "sanity: without Helper Boost active, normal1 earns its seat on its own merits");
+  assert.ok(!withHB.team.some(p => p.id === "normal1"),
+    "with Helper Boost active, the same normal1 loses its seat to the type-matching electric2");
+  assert.ok(withHB.team.some(p => p.id === "electric2"), "the type-matching mon must be the one that displaced it");
+});
+
+test("buildTeam surfaces a Helper Boost tip with the sourced match count and helps-per-activation", () => {
+  const island = Object.keys(GAME.islands).find(i => !GAME.islands[i].expert && GAME.islands[i].berries.includes("all"));
+  const raikou = mon({ id: "raikou", species: "Raikou", mainSkillLevel: 6 });
+  const electricFriend = mon({ id: "friend", species: "Luxray" });
+  const filler = [0, 1, 2].map(i => mon({ id: `f${i}`, species: "Bagon" }));
+  const result = Formulas.buildTeam([raikou, electricFriend, ...filler], island, null, null);
+  assert.ok(result.tips.some(t => t.includes("Helper Boost") && t.includes("Electric")),
+    "expected a Helper Boost tip naming the matched type");
+});
+
+test("buildTeam surfaces qualitative tips for Bad Dreams and Lunar Blessing carriers", () => {
+  const island = Object.keys(GAME.islands).find(i => !GAME.islands[i].expert && GAME.islands[i].berries.includes("all"));
+  const darkrai = mon({ id: "darkrai", species: "Darkrai", mainSkillLevel: 7 });
+  const cresselia = mon({ id: "cresselia", species: "Cresselia", mainSkillLevel: 6 });
+  const filler = [0, 1, 2].map(i => mon({ id: `f${i}`, species: "Bagon" }));
+  const result = Formulas.buildTeam([darkrai, cresselia, ...filler], island, null, null);
+  assert.ok(result.tips.some(t => t.includes("Bad Dreams") && t.includes("drains")),
+    "expected a Bad Dreams energy-drain tip");
+  assert.ok(result.tips.some(t => t.includes("Lunar Blessing")),
+    "expected a Lunar Blessing tip");
+});
+
+test("buildTeam surfaces a Helping Bonus tip when a team member carries the unlocked subskill", () => {
+  const island = Object.keys(GAME.islands).find(i => !GAME.islands[i].expert && GAME.islands[i].berries.includes("all"));
+  const species = pickSpecies(() => true);
+  const holder = mon({ id: "holder", species, subskills: { 10: { name: "Helping Bonus" } } });
+  const filler = [0, 1, 2, 3].map(i => mon({ id: `f${i}`, species }));
+  const result = Formulas.buildTeam([holder, ...filler], island, null, null);
+  assert.ok(result.tips.some(t => t.includes("Helping Bonus")), "expected a Helping Bonus tip");
+});
+
+test("hasUnlockedSubskill ignores a slot below the pokemon's level, mirroring isSubskillLocked", () => {
+  assert.equal(Formulas.hasUnlockedSubskill({ level: 60, subskills: { 10: { name: "Helping Bonus" } } }, "Helping Bonus"), true);
+  assert.equal(Formulas.hasUnlockedSubskill({ level: 5, subskills: { 10: { name: "Helping Bonus" } } }, "Helping Bonus"), false);
 });
 
 // ── Greengrass Isle regular weekly favorite berries ────────────────────────────
