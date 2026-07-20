@@ -345,3 +345,27 @@ bubblewrap build   # produces signed .aab/.apk + keystore
   Bad Dreams/Lunar Blessing/Helping Bonus quantification and a more accurate
   throughput estimate for "no sustain skill" teams are now explicitly
   blocked on - see docs/AUDIT_TEAM_BUILDER_2026-07-17.md.
+- 2026-07-18: bugfix - a real Pokemon (Gourgeist (Medium Variety), Luis's sole
+  roster producer of Plump Pumpkin) never made the team for "\"Scary Face\"
+  Pancakes" despite being the ONLY roster member able to supply that needed
+  ingredient, and the app reported it as missing. Root cause: Phase 2
+  (2026-07-17) put the berry axis in real Snorlax-strength units (35-540/hr),
+  and even at the reduced `berryWhenDish` weight a strong Berries specialist's
+  berry axis could still outscore a weak-but-sole ingredient producer's small
+  marginal dish value - so the greedy loop picked the berry specialist for a
+  seat instead, leaving the ingredient with zero producers on the team even
+  though one existed on the roster. An uncovered ingredient makes the dish
+  literally uncookable, which no amount of berry/skill value should be able
+  to outrank. Fixed with a coverage-priority rule in `buildTeam`: while any
+  required ingredient is still at its full original demand (nobody picked so
+  far produces any of it), each pick is restricted to candidates who can
+  supply one of those uncovered ingredients - normal marginal-value ranking
+  only resumes once every producible ingredient has at least one producer on
+  the team. Applied the same guarantee to the Helper Boost swap-improvement
+  pass (`coveredIngredientCount`), which could otherwise have undone the
+  greedy loop's coverage guarantee by swapping the sole producer out for a
+  higher-scoring but ingredient-irrelevant pick. Verified against both the
+  real reported case (Luis's 154-mon roster - confirmed the bug reproduced,
+  then confirmed the fix resolves it) and a new regression test using
+  gameData species, verified to fail against the pre-fix code and pass
+  against the fix. All 32 formula tests pass.

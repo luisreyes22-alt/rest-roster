@@ -248,6 +248,45 @@ test("coverage beats redundancy: the only producer of a second needed ingredient
     `the sole ${ingY} producer must beat the 5th redundant ${ingX} producer`);
 });
 
+// ── Coverage guarantee (2026-07-18 bugfix) ──────────────────────────────────────
+// Reported bug: a real Pokemon (Gourgeist, sole roster producer of Plump Pumpkin)
+// never made the team for a recipe that needed it, because Phase 2's real-unit
+// berry axis (35-540/hr) could outscore a weak-but-sole ingredient producer's
+// small marginal dish value even at the reduced berryWhenDish weight - leaving
+// the ingredient completely uncovered despite a roster member being able to
+// supply it. An uncovered ingredient makes the dish literally uncookable, which
+// no amount of berry/skill value should be allowed to outrank.
+
+test("coverage guarantee: a weak sole ingredient producer is never crowded out by a strong Berries specialist", () => {
+  let recipe, ingX, ingY, weakSpecies, strongYSpecies;
+  outer:
+  for (const r of GAME.recipes.filter(r => r.ingredients.length >= 2)) {
+    const names = r.ingredients.map(i => i.ingredient);
+    for (const a of names) for (const b of names) {
+      if (a === b) continue;
+      const sx = Object.keys(GAME.species).find(s => GAME.species[s].ingredientPercent < 15 && GAME.species[s].ingredient0.some(i => i.ingredient === a));
+      const sy = Object.keys(GAME.species).find(s => GAME.species[s].ingredientPercent >= 20 && GAME.species[s].ingredient0.some(i => i.ingredient === b) &&
+        !GAME.species[s].ingredient0.some(i => i.ingredient === a));
+      if (sx && sy) { recipe = r; ingX = a; ingY = b; weakSpecies = sx; strongYSpecies = sy; break outer; }
+    }
+  }
+  assert.ok(recipe, "expected a weak/strong species + recipe combo in gameData");
+
+  const weakMon = mon({ id: "weak", species: weakSpecies, level: 30, frequency: "50 mins 0 secs" });
+  const yProducers = [0, 1, 2, 3].map(i => mon({ id: `y${i}`, species: strongYSpecies, level: 50 }));
+  const berrySpecies = Object.keys(GAME.species).find(s => GAME.species[s].specialty === "Berries");
+  // Max level (GAME.meta.maxLevel) maximizes berryRate's level-scaled value -
+  // the worst case for this bug, since a bigger berry axis is more likely to
+  // outscore the weak producer's marginal dish value.
+  const berrySpecialist = mon({ id: "berry", species: berrySpecies, specialty: "Berries", level: GAME.meta.maxLevel });
+
+  const roster = [weakMon, ...yProducers, berrySpecialist];
+  const result = Formulas.buildTeam(roster, nonExpertIsland, recipe.name, null);
+  assert.ok(result.team.some(p => p.id === "weak"),
+    `the sole ${ingX} producer must make the team even against a maxed Berries specialist with no dish relevance`);
+  assert.equal(result.missingIngredients.length, 0, `${ingX} must not be reported as missing when a producer is on the roster`);
+});
+
 test("bestAchievableDish returns every recipe ranked by achievable value, descending", () => {
   const roster = Object.keys(GAME.species).slice(0, 10).map((s, i) => mon({ id: `r${i}`, species: s }));
   const ranked = Formulas.bestAchievableDish(roster, nonExpertIsland, null);
