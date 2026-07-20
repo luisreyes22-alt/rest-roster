@@ -552,10 +552,30 @@
     const team = [];
     const used = new Set();
 
+    // A needed ingredient with NO producer on the team yet makes the dish
+    // literally uncookable, no matter how large every other axis gets - that's
+    // categorically worse than any amount of berry/skill value, so it can't be
+    // left to plain score comparison (a real-unit berry axis can otherwise be
+    // large enough to outscore a weak-but-sole ingredient producer; see the
+    // 2026-07-18 bugfix in docs/ROADMAP.md). While any required ingredient is
+    // still at its full original demand (nobody picked so far produces any of
+    // it), each pick is restricted to candidates who can supply one of those
+    // - guaranteeing every producible ingredient gets covered before the
+    // normal marginal-value ranking optimizes the remaining seats.
     while (team.length < 5) {
+      let candidatePool = roster.filter(p => !used.has(p.id));
+      if (recipe) {
+        const uncovered = Object.keys(remainingDemand).filter(ing => remainingDemand[ing] === originalDemand[ing]);
+        if (uncovered.length > 0) {
+          const coverageCandidates = candidatePool.filter(p => {
+            const rates = ratesById.get(p.id);
+            return uncovered.some(ing => (rates[ing] || 0) > 0);
+          });
+          if (coverageCandidates.length > 0) candidatePool = coverageCandidates;
+        }
+      }
       let best = null, bestBreakdown = null;
-      for (const p of roster) {
-        if (used.has(p.id)) continue;
+      for (const p of candidatePool) {
         const b = axisBreakdown(p);
         if (!best || b.total > bestBreakdown.total) { best = p; bestBreakdown = b; }
       }
@@ -654,6 +674,19 @@
       return total + helperBoostAxisBonus(members);
     }
 
+    // How many required ingredients this member set covers (at least one
+    // producer each) - used to stop the swap pass from undoing the coverage
+    // guarantee above by trading away a weak sole producer for a higher-
+    // scoring but ingredient-irrelevant pick (e.g. a strong berry specialist).
+    function coveredIngredientCount(members) {
+      if (!requiredIngredients) return 0;
+      let count = 0;
+      for (const ing of requiredIngredients) {
+        if (members.some(p => (ratesById.get(p.id)[ing] || 0) > 0)) count++;
+      }
+      return count;
+    }
+
     // The swap pass only exists to find Helper Boost synergy the greedy loop
     // can't see - skip it entirely when nothing on the roster even has the
     // skill (the common case). On a 150+ roster this pass is O(passes x 5 x
@@ -664,6 +697,7 @@
     const SWAP_IMPROVEMENT_EPSILON = 0.01;
     const hasHelperBoostCandidate = roster.some(p => p.mainSkill === HELPER_BOOST_SKILL_NAME);
     let currentTotal = evaluateTeamSet(team);
+    let currentCoverage = coveredIngredientCount(team);
     for (let pass = 0; hasHelperBoostCandidate && pass < MAX_SWAP_PASSES; pass++) {
       let improved = false;
       for (let i = 0; i < team.length; i++) {
@@ -673,6 +707,9 @@
           if (p.id === incumbentId || used.has(p.id)) continue;
           const trial = team.slice();
           trial[i] = p;
+          // Never let a Helper Boost swap regress ingredient coverage - a
+          // higher team score is not worth making the dish uncookable.
+          if (recipe && coveredIngredientCount(trial) < currentCoverage) continue;
           const trialTotal = evaluateTeamSet(trial);
           if (trialTotal > bestTotal + SWAP_IMPROVEMENT_EPSILON) { bestTotal = trialTotal; bestCandidate = p; }
         }
@@ -681,6 +718,7 @@
           used.add(bestCandidate.id);
           team[i] = bestCandidate;
           currentTotal = bestTotal;
+          currentCoverage = coveredIngredientCount(team);
           improved = true;
         }
       }
